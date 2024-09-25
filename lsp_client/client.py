@@ -7,7 +7,7 @@ from .protocol import BaseRequest
 from .utils import parse_content_type, EncodingError
 
 DEFAULT_ENCODING = "utf-8"
-DEFAULT_CONTENT_TYPE = "application/vscode-jsonrpc; charset=utf-8"
+DEFAULT_CONTENT_TYPE = "application/vscode-jsonrpc"
 SEPARATOR = "\r\n"
 
 
