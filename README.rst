@@ -1,3 +1,6 @@
+.. image:: https://dl.circleci.com/status-badge/img/circleci/SX4dB7EiB7eWsjtARafS4F/D6yQKPbvdADUCx7z5HtMds/tree/main.svg?style=svg
+        :target: https://dl.circleci.com/status-badge/redirect/circleci/SX4dB7EiB7eWsjtARafS4F/D6yQKPbvdADUCx7z5HtMds/tree/main
+
 Summary
 =======
 
@@ -15,10 +18,11 @@ production environments.
 Alternatives
 ============
 
-Microsoft's `monitors4codegen 
-<https://github.com/microsoft/monitors4codegen/tree/main/src/monitors4codegen/multilspy>`_
-repository offers another implementation of LSP in Python, including a server
-implementation for several popular languages.
+Microsoft's `multispy<https://github.com/microsoft/multilspy>`_
+repository includes a server implementation of LSP in Python.
+
+Yeger's python package `pyslpclient<https://github.com/yeger00/pylspclient>`_
+offers a thread-safe client implementation of LSP in Python.
 
 Requirements
 ============

@@ -4,7 +4,8 @@ from .protocol import (
     CancelRequest,
     ContentChange,
     InitializeRequest,
-    OpenTextDocumentRequest,
+    TextDocumentItem,
+    TextDocument_DidOpen_Request,
     TextDocument_DidChange_Request,
 )
 
@@ -13,7 +14,8 @@ __all__ = [
         'CancelRequest',
         'ContentChange',
         'InitializeRequest',
-        'OpenTextDocumentRequest',
+        'TextDocument_DidOpen_Request',
         'STDIOLSPClient',
-        'TextDocument_DidChange_Request'
+        'TextDocumentItem',
+        'TextDocument_DidChange_Request',
 ]

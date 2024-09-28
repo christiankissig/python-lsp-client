@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 extras_require = dict()
-extras_require['dev']=[
+extras_require['dev'] = [
     'black',
     'flake8',
     'isort',
@@ -18,7 +18,7 @@ extras_require['ci'] = [
 
 setup(
     name="lsp_client",
-    version="0.0.1",
+    version="0.0.2",
     description="A client implementation of the Language Server Protocol in Python.",
     long_description=open("README.rst").read(),
     long_description_content_type="text/x-rst",
@@ -34,6 +34,7 @@ setup(
     ],
     python_requires='>=3.6',
     install_requires=[
+        'pydantic>=2.9.0',
     ],
     extras_require=extras_require,
     entry_points={

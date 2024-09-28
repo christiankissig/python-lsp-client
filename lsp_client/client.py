@@ -29,7 +29,7 @@ class BaseLSPClient:
             self.logger = logger
         self.executable = executable
         self.server_args = server_args
-        self.method_handlers= method_handlers
+        self.method_handlers = method_handlers
         self.id = 0
         self.process = None
 
