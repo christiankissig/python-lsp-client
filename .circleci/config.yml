@@ -15,6 +15,7 @@ jobs:
             pipenv install -r requirements.txt
             pipenv install dist/lsp_client-0.0.2-py3-none-any.whl
             pipenv install pytest
+            pipenv install pytest-asyncio
       - run:
           command: | # Run test suite
             pipenv run pytest
