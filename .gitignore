@@ -27,6 +27,8 @@
 .vscode
 /pythonenv*/
 3rdparty/
+Pipfile
+Pipfile.lock
 __pycache__/
 bin/
 build/

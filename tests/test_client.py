@@ -1,17 +1,21 @@
+import asyncio
 import json
+import pytest
+import pytest_asyncio
+import sys
 
-from lsp_client.client import BaseLSPClient, DEFAULT_ENCODING, SEPARATOR, DEFAULT_CONTENT_TYPE
+from lsp_client.client import LSPClient, DEFAULT_ENCODING, SEPARATOR, DEFAULT_CONTENT_TYPE
 from unittest.mock import patch
 
-
-def test_send_request_headers():
-    client = BaseLSPClient("")
+@pytest.mark.asyncio
+async def test_send_request_headers():
+    client = LSPClient(sys.stdin, sys.stdout, dict())
     test_request = {'jsonrpc': '2.0', 'method': 'initialize', 'params': {}, 'id': 1}
 
-    with patch.object(client, '_write_request') as mock_write_request:
-        client._send_request(test_request)
+    with patch.object(client, '_async_write_request') as mock_write_request:
+        await client._send_request(test_request)
 
-        # Capture the header and request bytes passed to _write_request
+        # Capture the header and request bytes passed to _async_write_request
         mock_write_request.assert_called_once()
         args, kwargs = mock_write_request.call_args
 

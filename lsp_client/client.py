@@ -1,6 +1,5 @@
 import asyncio
 import json
-import subprocess
 import logging
 
 from .protocol import BaseRequest
@@ -11,29 +10,33 @@ DEFAULT_CONTENT_TYPE = "application/vscode-jsonrpc"
 SEPARATOR = "\r\n"
 
 
-class BaseLSPClient:
+class LSPClient(object):
     """
-    A base class for LSP clients.
+    An asynchronous client implementation for the Language Server Protocol.
     """
+
+    request_id: int
+    stdin: asyncio.StreamWriter
+    stdout: asyncio.StreamReader
+    method_handlers: dict[str, callable]
 
     def __init__(
         self,
-        executable: str,
-        server_args: list[str] = [],
-        method_handlers: dict[str, callable] = {},
+        stdin: asyncio.StreamWriter,
+        stdout: asyncio.StreamReader,
+        method_handlers: dict[str, callable],
         logger: logging.Logger | None = None
     ):
         if logger is None:
             self.logger = logging.getLogger(__name__)
         else:
             self.logger = logger
-        self.executable = executable
-        self.server_args = server_args
+        self.request_id = 0
         self.method_handlers = method_handlers
-        self.id = 0
-        self.process = None
+        self.stdin = stdin
+        self.stdout = stdout
 
-    def _send_request(self, request: dict):
+    async def _send_request(self, request: dict):
         """
         Send a request to the LSP server.
 
@@ -49,23 +52,16 @@ class BaseLSPClient:
         header_string += f"{SEPARATOR}{SEPARATOR}"
         header_bytes = header_string.encode(DEFAULT_ENCODING)
 
-        payload = header_string + request_string
-        if len(payload) > 100:
-            message = f"sending: {payload[:100]}..."
-        else:
-            message = f"sending: {payload}"
-        self.logger.info(message)
+        await self._async_write_request(header_bytes, request_bytes)
 
-        self._write_request(header_bytes, request_bytes)
-
-    def send_request(self, request: BaseRequest) -> None:
+    async def send_request(self, request: BaseRequest):
         """
         Send a request to the LSP server.
 
         Args:
             request: A request object.
         """
-        self._send_request(request.to_dict())
+        return self._send_request(request.to_dict())
 
     async def _async_read_response(self):
         """
@@ -93,7 +89,36 @@ class BaseLSPClient:
         response = await self._async_read(content_length)
         decoded_response = response.decode(encoding)
         response = json.loads(decoded_response)
-        self._handle_response(response)
+        return self._handle_response(response)
+
+    async def _async_write_request(self, header_bytes, request_bytes):
+        """
+        Implements asynchronous writing to the LSP server subprocess.
+        """
+        assert self.stdin is not None
+        self.stdin.write(header_bytes)
+        self.stdin.write(request_bytes)
+        await self.stdin.drain()
+
+    async def _async_read(self, content_length: int) -> bytes:
+        """
+        Implements asynchronous reading from STDIN of the subprocess.
+
+        Accounts for system buffer.
+        """
+        assert self.stdout is not None
+        response = await self.stdout.read(content_length)
+        while len(response) < content_length:
+            remaining_length = content_length - len(response)
+            response += await self.stdout.read(remaining_length)
+        return response
+
+    async def _async_read_line(self):
+        """
+        Implements asynchronous reading of a line from STDIN of the subprocess.
+        """
+        assert self.stdout is not None
+        return await self.stdout.readline()
 
     def _handle_response(self, response: dict):
         """
@@ -108,87 +133,3 @@ class BaseLSPClient:
             else:
                 message = f"Unhandled response: {response}"
             self.logger.info(message)
-
-    async def _read_response(self):
-        """
-        Read response and handle methods.
-
-        Currently shadows _async_read_response.
-        """
-        await self._async_read_response()
-
-    def _write_request(self, header_bytes, request_bytes) -> None:
-        """
-        Writes a request to the LSP server.
-
-        Implemented by concrete client implementation.
-        """
-        raise NotImplementedError
-
-    async def _async_read_line(self):
-        """
-        Reads a line asynchronously from the LSP server.
-
-        Implemented by concrete client implementation.
-        """
-        raise NotImplementedError
-
-    async def _async_read(self, content_length: int) -> bytes:
-        """
-        Reads asynchronously from the LSP server.
-
-        Implemented by concrete client implementation.
-        """
-        raise NotImplementedError
-
-
-class STDIOLSPClient(BaseLSPClient):
-    """
-    A client implementation for Language Server Protocol over std I/O.
-    """
-
-    def __init__(
-        self,
-        executable: str,
-        server_args: list[str] = [],
-        callbacks: dict[str, callable] = {}
-    ):
-        super().__init__(executable, server_args, callbacks)
-
-    async def start(self):
-        """
-        Start the LSP server as a subprocess.
-        """
-        program = [self.executable] + self.server_args
-        self.logger.info("Starting " + " ".join(program))
-        self.process = await asyncio.create_subprocess_exec(
-            *program,
-            stdin=subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            bufsize=0
-        )
-
-    def _write_request(self, header_bytes, request_bytes):
-        """
-        Implements synchronous writing to the LSP server subprocess.
-        """
-        self.process.stdin.write(header_bytes)
-        self.process.stdin.write(request_bytes)
-
-    async def _async_read(self, content_length: int) -> bytes:
-        """
-        Implements asynchronous reading from STDIN of the subprocess.
-
-        Accounts for system buffer.
-        """
-        response = await self.process.stdout.read(content_length)
-        while len(response) < content_length:
-            remaining_length = content_length - len(response)
-            response += await self.process.stdout.read(remaining_length)
-        return response
-
-    async def _async_read_line(self):
-        """
-        Implements asynchronous reading of a line from STDIN of the subprocess.
-        """
-        return await self.process.stdout.readline()

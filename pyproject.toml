@@ -37,6 +37,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
 addopts = "--strict-markers"
 testpaths = [
     "tests"
@@ -49,3 +50,4 @@ local_scheme = "node-and-timestamp"
 [tool.flake8]
 max-line-length = 120
 exclude = ".git,__pycache__,docs/source/conf.py,old,build,dist"
+

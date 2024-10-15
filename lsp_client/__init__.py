@@ -1,4 +1,4 @@
-from .client import STDIOLSPClient
+from .client import LSPClient
 from .protocol import (
     BaseRequest,
     CancelRequest,
@@ -14,8 +14,8 @@ __all__ = [
         'CancelRequest',
         'ContentChange',
         'InitializeRequest',
-        'TextDocument_DidOpen_Request',
-        'STDIOLSPClient',
+        'LSPClient',
         'TextDocumentItem',
         'TextDocument_DidChange_Request',
+        'TextDocument_DidOpen_Request',
 ]

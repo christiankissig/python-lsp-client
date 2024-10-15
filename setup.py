@@ -9,6 +9,7 @@ extras_require['dev'] = [
 
 extras_require['test'] = [
     'pytest',
+    'pytest-asyncio',
 ]
 
 extras_require['ci'] = [
