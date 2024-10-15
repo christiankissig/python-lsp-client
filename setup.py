@@ -26,6 +26,9 @@ setup(
     author="Christian Kissig",
     url="https://github.com/christiankissig/python-lsp-client",
     packages=find_packages(),
+    package_data={
+        "*": ["*.txt", "*.rst", "*.md"]
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
