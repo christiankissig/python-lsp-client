@@ -36,7 +36,7 @@ class LSPClient(object):
         self.stdin = stdin
         self.stdout = stdout
 
-    async def _send_request(self, request: dict):
+    async def send_request(self, request: dict):
         """
         Send a request to the LSP server.
 
@@ -54,16 +54,7 @@ class LSPClient(object):
 
         await self._async_write_request(header_bytes, request_bytes)
 
-    async def send_request(self, request: BaseRequest):
-        """
-        Send a request to the LSP server.
-
-        Args:
-            request: A request object.
-        """
-        return self._send_request(request.to_dict())
-
-    async def _async_read_response(self):
+    async def read_response(self):
         """
         Read response asynchronously and handle methods.
         """
