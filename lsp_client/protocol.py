@@ -42,6 +42,7 @@ class ProtocolError(Exception):
 # Server Lifecycle
 # See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#lifeCycleMessages
 
+
 class WorkDoneProgressParams(BaseModel):
 
     workDoneToken: int | str
@@ -160,7 +161,9 @@ class TextDocumentItem(BaseModel):
 
 class TextDocument_DidOpen_Request(BaseRequest):
 
-    method: str = "textDocument/didOpen"
+    def __init__(self, **kwargs):
+        kwargs["method"] = "textDocument/didOpen"
+        super(TextDocument_DidOpen_Request, self).__init__(**kwargs)
 
 
 class Position(BaseModel):
@@ -184,11 +187,13 @@ class ContentChange(BaseModel):
 
 class TextDocument_DidChange_Request(BaseRequest):
 
-    method: str = "textDocument/didChange"
-
     uri: str
     version: int
     contentChanges: list[ContentChange]
+
+    def __init__(self, **kwargs):
+        kwargs["method"] = "textDocument/didChange"
+        super(TextDocument_DidChange_Request, self).__init__(**kwargs)
 
 
 # $ Notifications and Requests
