@@ -1,6 +1,3 @@
-.. image:: https://dl.circleci.com/status-badge/img/circleci/SX4dB7EiB7eWsjtARafS4F/D6yQKPbvdADUCx7z5HtMds/tree/master.svg?style=svg
-        :target: https://dl.circleci.com/status-badge/redirect/circleci/SX4dB7EiB7eWsjtARafS4F/D6yQKPbvdADUCx7z5HtMds/tree/master
-
 Summary
 =======
 
