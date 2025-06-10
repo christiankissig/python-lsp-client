@@ -39,7 +39,7 @@ jobs:
 
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --with dev,test
+      run: poetry install --extras dev,test
 
     - name: Run code quality checks
       run: |
@@ -122,7 +122,7 @@ jobs:
       uses: snok/install-poetry@v1
 
     - name: Install dependencies
-      run: poetry install --with dev
+      run: poetry install --extras dev
 
     - name: Run security checks
       run: |
