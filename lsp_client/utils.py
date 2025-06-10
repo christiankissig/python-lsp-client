@@ -28,7 +28,7 @@ def parse_content_type(content_type_string: str | None):
         ):
             encoding = content_type_parts[1].split('=')[1].strip()
             if not is_valid_encoding(encoding):
-                raise EncodingException(encoding)
+                raise EncodingError(encoding)
         else:
             encoding = DEFAULT_ENCODING
         return (content_type, encoding)
