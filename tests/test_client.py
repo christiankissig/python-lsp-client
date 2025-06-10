@@ -3,12 +3,13 @@ import pytest
 import sys
 
 from lsp_client.client import LSPClient, DEFAULT_ENCODING, SEPARATOR, DEFAULT_CONTENT_TYPE
+from lsp_client.protocol import InitializeRequest
 from unittest.mock import patch
 
 @pytest.mark.asyncio
 async def test_send_request_headers():
     client = LSPClient(sys.stdin, sys.stdout, dict())
-    test_request = {'jsonrpc': '2.0', 'method': 'initialize', 'params': {}, 'id': 1}
+    test_request = InitializeRequest(id=0)
 
     with patch.object(client, '_async_write_request') as mock_write_request:
         await client.send_request(test_request)
@@ -28,4 +29,4 @@ async def test_send_request_headers():
         assert expected_content_type in header_string
 
         actual_request = json.loads(request_string)
-        assert actual_request == test_request
+        assert actual_request == test_request.model_dump()

@@ -1,5 +1,7 @@
 from .client import LSPClient
 from .protocol import (
+    Position,
+    Range,
     BaseRequest,
     CancelRequest,
     ContentChange,
@@ -10,6 +12,8 @@ from .protocol import (
 )
 
 __all__ = [
+        'Position',
+        'Range',
         'BaseRequest',
         'CancelRequest',
         'ContentChange',

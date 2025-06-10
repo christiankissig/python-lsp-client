@@ -36,7 +36,16 @@ class LSPClient(object):
         self.stdin = stdin
         self.stdout = stdout
 
-    async def send_request(self, request: dict):
+    async def send_request(self, request: BaseRequest):
+        """
+        Send a request to the LSP server.
+
+        Args:
+            request: A BaseRequest object representing the request.
+        """
+        await self._send_request(request.model_dump())
+
+    async def _send_request(self, request: dict):
         """
         Send a request to the LSP server.
 
@@ -80,7 +89,7 @@ class LSPClient(object):
         response = await self._async_read(content_length)
         decoded_response = response.decode(encoding)
         response = json.loads(decoded_response)
-        return self._handle_response(response)
+        await self._handle_response(response)
 
     async def _async_write_request(self, header_bytes, request_bytes):
         """
@@ -111,13 +120,14 @@ class LSPClient(object):
         assert self.stdout is not None
         return await self.stdout.readline()
 
-    def _handle_response(self, response: dict):
+    async def _handle_response(self, response: dict):
         """
         Delegate response to method handlers from the LSP server.
         """
         if "method" in response and response["method"] in self.method_handlers:
             method = response["method"]
-            self.method_handlers[method](response)
+            self.logger.info(f"Handling response for method {method}")
+            await self.method_handlers[method](response)
         else:
             if "method" in response:
                 message = f"Unhandled response for method {response['method']}"

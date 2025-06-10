@@ -187,12 +187,15 @@ class ContentChange(BaseModel):
 
 class TextDocument_DidChange_Request(BaseRequest):
 
-    uri: str
-    version: int
-    contentChanges: list[ContentChange]
-
-    def __init__(self, **kwargs):
+    def __init__(self, uri, version, contentChanges, **kwargs):
         kwargs["method"] = "textDocument/didChange"
+        if "params" in kwargs:
+            params = kwargs["params"]
+        else:
+            params = {}
+        params["textDocument"] = {"uri": uri, "version": version}
+        params["contentChanges"] = contentChanges
+        kwargs["params"] = params
         super(TextDocument_DidChange_Request, self).__init__(**kwargs)
 
 
