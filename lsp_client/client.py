@@ -1,9 +1,10 @@
 import asyncio
 import json
 import logging
+from typing import Callable
 
 from .protocol import BaseRequest
-from .utils import parse_content_type, EncodingError
+from .utils import EncodingError, parse_content_type
 
 DEFAULT_ENCODING = "utf-8"
 DEFAULT_CONTENT_TYPE = "application/vscode-jsonrpc"
@@ -18,15 +19,15 @@ class LSPClient(object):
     request_id: int
     stdin: asyncio.StreamWriter
     stdout: asyncio.StreamReader
-    method_handlers: dict[str, callable]
+    method_handlers: dict[str, Callable]
 
     def __init__(
         self,
         stdin: asyncio.StreamWriter,
         stdout: asyncio.StreamReader,
-        method_handlers: dict[str, callable],
-        logger: logging.Logger | None = None
-    ):
+        method_handlers: dict[str, Callable],
+        logger: logging.Logger | None = None,
+    ) -> None:
         if logger is None:
             self.logger = logging.getLogger(__name__)
         else:
@@ -36,7 +37,7 @@ class LSPClient(object):
         self.stdin = stdin
         self.stdout = stdout
 
-    async def send_request(self, request: BaseRequest):
+    async def send_request(self, request: BaseRequest) -> None:
         """
         Send a request to the LSP server.
 
@@ -45,7 +46,7 @@ class LSPClient(object):
         """
         await self._send_request(request.model_dump())
 
-    async def _send_request(self, request: dict):
+    async def _send_request(self, request: dict) -> None:
         """
         Send a request to the LSP server.
 
@@ -63,7 +64,7 @@ class LSPClient(object):
 
         await self._async_write_request(header_bytes, request_bytes)
 
-    async def read_response(self):
+    async def read_response(self) -> None:
         """
         Read response asynchronously and handle methods.
         """
@@ -73,11 +74,11 @@ class LSPClient(object):
         while True:
             line = await self._async_read_line()
             decoded_line = line.decode(DEFAULT_ENCODING)
-            if decoded_line.startswith('Content-Length:'):
-                content_length = int(decoded_line.split(':')[1].strip())
-            elif decoded_line.startswith('Content-Type:'):
-                content_type = decoded_line.split(':')[1].strip()
-            elif decoded_line.strip() == '':
+            if decoded_line.startswith("Content-Length:"):
+                content_length = int(decoded_line.split(":")[1].strip())
+            elif decoded_line.startswith("Content-Type:"):
+                content_type = decoded_line.split(":")[1].strip()
+            elif decoded_line.strip() == "":
                 break
 
         try:
@@ -91,7 +92,9 @@ class LSPClient(object):
         response = json.loads(decoded_response)
         await self._handle_response(response)
 
-    async def _async_write_request(self, header_bytes, request_bytes):
+    async def _async_write_request(
+        self, header_bytes: bytes, request_bytes: bytes
+    ) -> None:
         """
         Implements asynchronous writing to the LSP server subprocess.
         """
@@ -113,14 +116,14 @@ class LSPClient(object):
             response += await self.stdout.read(remaining_length)
         return response
 
-    async def _async_read_line(self):
+    async def _async_read_line(self) -> bytes:
         """
         Implements asynchronous reading of a line from STDIN of the subprocess.
         """
         assert self.stdout is not None
         return await self.stdout.readline()
 
-    async def _handle_response(self, response: dict):
+    async def _handle_response(self, response: dict) -> None:
         """
         Delegate response to method handlers from the LSP server.
         """

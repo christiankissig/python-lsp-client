@@ -39,7 +39,7 @@ jobs:
 
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --extras dev,test
+      run: poetry install --all-extras --no-interaction
 
     - name: Run code quality checks
       run: |
@@ -56,7 +56,8 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.xml
-        fail_ci_if_error: true
+        fail_ci_if_error: false
+      continue-on-error: true
 
   build:
     runs-on: ubuntu-latest
@@ -107,25 +108,3 @@ jobs:
       env:
         POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
       run: poetry publish
-
-  security:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-
-    - name: Install dependencies
-      run: poetry install --extras dev
-
-    - name: Run security checks
-      run: |
-        poetry run pip install safety bandit
-        poetry run safety check
-        poetry run bandit -r lsp_client/

@@ -5,6 +5,8 @@ See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17
 for reference, and what a correct and complete implementation should look like.
 """
 
+from typing import Any, List, Optional
+
 from pydantic import BaseModel, Field
 
 # global request ID
@@ -12,13 +14,12 @@ latest_request_id: int = 0
 
 
 class BaseRequest(BaseModel):
-
     jsonrpc: str = Field(default="2.0")
     id: int
     method: str
     params: dict | None = Field(default=None)
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         global latest_request_id
         latest_request_id += 1
         if "id" not in kwargs:
@@ -27,8 +28,7 @@ class BaseRequest(BaseModel):
 
 
 class ProtocolError(Exception):
-
-    def __init__(self, message, errors=None):
+    def __init__(self, message: str, errors: Optional[List[str]] = None) -> None:
         """
         Initialize the exception with an error message and optional errors.
 
@@ -39,23 +39,21 @@ class ProtocolError(Exception):
         super().__init__(message)
         self.errors = errors
 
+
 # Server Lifecycle
 # See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#lifeCycleMessages
 
 
 class WorkDoneProgressParams(BaseModel):
-
     workDoneToken: int | str
 
 
 class ClientInfo(BaseModel):
-
     name: str
     version: str | None
 
 
 class ClientCapabilities(BaseModel):
-
     workspace: dict | None
     textDocument: dict | None
     notebook: dict | None
@@ -65,7 +63,6 @@ class ClientCapabilities(BaseModel):
 
 
 class TextDocumentClientCapabilities(BaseModel):
-
     synchronization: dict | None
     completion: dict | None
     hover: dict | None
@@ -99,12 +96,10 @@ class TextDocumentClientCapabilities(BaseModel):
 
 
 class NotebookDocumentClientCapabilities(BaseModel):
-
     synchronization: dict | None
 
 
 class WorkspaceClientCapabilities(BaseModel):
-
     applyEdit: dict | None
     workspaceEdit: dict | None
     didChangeConfiguration: dict | None
@@ -122,7 +117,6 @@ class WorkspaceClientCapabilities(BaseModel):
 
 
 class FileOperationsClientCapabilities:
-
     didCreate: dict | None
     willCreate: dict | None
     didRename: dict | None
@@ -132,7 +126,6 @@ class FileOperationsClientCapabilities:
 
 
 class InitializeParams(WorkDoneProgressParams):
-
     processId: int
     clientInfo: ClientInfo
     rootPath: str | None
@@ -144,15 +137,14 @@ class InitializeParams(WorkDoneProgressParams):
 
 
 class InitializeRequest(BaseRequest):
-
     method: str = "initialize"
 
 
 # Text Document Synchronization
 # See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_synchronization # noqa: E501
 
-class TextDocumentItem(BaseModel):
 
+class TextDocumentItem(BaseModel):
     uri: str
     languageId: str
     version: int
@@ -160,34 +152,31 @@ class TextDocumentItem(BaseModel):
 
 
 class TextDocument_DidOpen_Request(BaseRequest):
-
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "textDocument/didOpen"
         super(TextDocument_DidOpen_Request, self).__init__(**kwargs)
 
 
 class Position(BaseModel):
-
     line: int
     character: int
 
 
 class Range(BaseModel):
-
     start: Position
     end: Position
 
 
 class ContentChange(BaseModel):
-
     text: str
     range: Range
     rangeLength: int
 
 
 class TextDocument_DidChange_Request(BaseRequest):
-
-    def __init__(self, uri, version, contentChanges, **kwargs):
+    def __init__(
+        self, uri: str, version: str, contentChanges: List[ContentChange], **kwargs: Any
+    ) -> None:
         kwargs["method"] = "textDocument/didChange"
         if "params" in kwargs:
             params = kwargs["params"]
@@ -202,21 +191,19 @@ class TextDocument_DidChange_Request(BaseRequest):
 # $ Notifications and Requests
 # See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#dollarRequests
 
-class CancelRequest(BaseRequest):
 
-    def __init__(self, language: str, **kwargs):
+class CancelRequest(BaseRequest):
+    def __init__(self, language: str, **kwargs: Any) -> None:
         kwargs["method"] = f"{language}/cancelRequest"
         super(CancelRequest, self).__init__(**kwargs)
 
 
 class ProgressParams(BaseModel):
-
     token: int | str
     value: dict
 
 
 class ProgressNotification(BaseRequest):
-
-    def __init__(self, language: str, **kwargs):
+    def __init__(self, language: str, **kwargs: Any) -> None:
         kwargs["method"] = f"{language}/progress"
         super(ProgressNotification, self).__init__(**kwargs)
