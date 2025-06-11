@@ -17,14 +17,14 @@ class LSPClient(object):
     """
 
     request_id: int
-    stdin: asyncio.StreamWriter
-    stdout: asyncio.StreamReader
+    stdin: asyncio.StreamWriter | None
+    stdout: asyncio.StreamReader | None
     method_handlers: dict[str, Callable]
 
     def __init__(
         self,
-        stdin: asyncio.StreamWriter,
-        stdout: asyncio.StreamReader,
+        stdin: asyncio.StreamWriter | None,
+        stdout: asyncio.StreamReader | None,
         method_handlers: dict[str, Callable],
         logger: logging.Logger | None = None,
     ) -> None:

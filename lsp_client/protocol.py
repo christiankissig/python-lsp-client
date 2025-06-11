@@ -137,7 +137,9 @@ class InitializeParams(WorkDoneProgressParams):
 
 
 class InitializeRequest(BaseRequest):
-    method: str = "initialize"
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "initialize"
+        super(InitializeRequest, self).__init__(**kwargs)
 
 
 # Text Document Synchronization
