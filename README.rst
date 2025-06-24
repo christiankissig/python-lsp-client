@@ -22,7 +22,7 @@ Alternatives
 Microsoft's `multispy<https://github.com/microsoft/multilspy>`_
 repository includes a server implementation of LSP in Python.
 
-Yeger's python package `pyslpclient<https://github.com/yeger00/pylspclient>`_
+yeger00's python package `pyslpclient<https://github.com/yeger00/pylspclient>`_
 offers a thread-safe client implementation of LSP in Python.
 
 Requirements
@@ -45,6 +45,4 @@ Build and install in virtual environment
 
 ::
 
-  pip install .
-
-
+  poetry install

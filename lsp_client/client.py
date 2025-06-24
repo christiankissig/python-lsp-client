@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Callable
+from typing import Any, Callable
 
 from .protocol import BaseRequest
 from .utils import EncodingError, parse_content_type
@@ -19,13 +19,13 @@ class LSPClient(object):
     request_id: int
     stdin: asyncio.StreamWriter | None
     stdout: asyncio.StreamReader | None
-    method_handlers: dict[str, Callable]
+    method_handlers: dict[str, list[Callable[..., Any]]]
 
     def __init__(
         self,
         stdin: asyncio.StreamWriter | None,
         stdout: asyncio.StreamReader | None,
-        method_handlers: dict[str, Callable],
+        method_handlers: dict[str, list[Callable[..., Any]]],
         logger: logging.Logger | None = None,
     ) -> None:
         if logger is None:
@@ -68,6 +68,7 @@ class LSPClient(object):
         """
         Read response asynchronously and handle methods.
         """
+        print("Reading response...")
         content_length = 0
         content_type = None
         # read headers
@@ -127,10 +128,12 @@ class LSPClient(object):
         """
         Delegate response to method handlers from the LSP server.
         """
+        print(f"Received response: {response}")
         if "method" in response and response["method"] in self.method_handlers:
             method = response["method"]
             self.logger.info(f"Handling response for method {method}")
-            await self.method_handlers[method](response)
+            for handler in self.method_handlers[method]:
+                await handler(response)
         else:
             if "method" in response:
                 message = f"Unhandled response for method {response['method']}"
