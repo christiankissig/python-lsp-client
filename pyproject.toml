@@ -2,60 +2,53 @@
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "lsp_client"
 version = "0.0.3"
-# Remove this line: dynamic = ["version"]
 description = "A client implementation of the Language Server Protocol in Python"
-authors = [
-  { name = "Christian Kissig" },
-]
+authors = ["Christian Kissig"]
 readme = "README.rst"
+license = "MIT"
+homepage = "https://github.com/christiankissig/python-lsp-client"
+repository = "https://github.com/christiankissig/python-lsp-client"
+documentation = "https://github.com/christiankissig/python-lsp-client"
+packages = [{include = "lsp_client"}]
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
 ]
-requires-python = ">=3.10"
-dependencies = [
-  "mypy>=1.9.0",
-  "pydantic>=2.9.0",
-]
 
-[project.urls]
-Homepage = "https://github.com/christiankissig/python-lsp-client"
-Repository = "https://github.com/christiankissig/python-lsp-client"
-Documentation = "https://github.com/christiankissig/python-lsp-client"
+[tool.poetry.dependencies]
+python = "^3.10"
+mypy = "^1.9.0"
+pydantic = "^2.9.0"
 
-[project.optional-dependencies]
-dev = [
-  "black>=23.7.0",
-  "isort>=5.12.0",
-  "pytest-asyncio>=0.22.0",
-  "pytest-cov>=4.1.0",
-  "pytest>=8.0.0",
-  "ruff>=0.1.6",
-  "twine>=4.0.2",
-]
-test = [
-  "annotated-types>=0.7.0",
-  "iniconfig>=2.0.0",
-  "mypy>=1.9.0",
-  "pytest-asyncio>=0.22.0",
-  "pytest-cov>=4.1.0",
-  "pytest>=8.0.0",
-  "ruff>=0.1.6",
-  "typing_extensions>=4.12.2",
-]
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+isort = "^5.12.0"
+pytest-asyncio = "^1.0.0"
+pytest-cov = "^4.1.0"
+pytest = "^8.0.0"
+ruff = "^0.1.6"
+twine = "^4.0.2"
+
+[tool.poetry.group.test.dependencies]
+annotated-types = "^0.7.0"
+iniconfig = "^2.0.0"
+mypy = "^1.9.0"
+pytest-asyncio = "^1.0.0"
+pytest-cov = "^4.1.0"
+pytest = "^8.0.0"
+ruff = "^0.1.6"
+typing_extensions = "^4.12.2"
 
 [tool.pytest.ini_options]
 markers = [
     "asyncio: mark test as an asyncio coroutine"
 ]
 addopts = "--strict-markers"
-testpaths = [
-    "tests"
-]
+testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.10"

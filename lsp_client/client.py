@@ -68,7 +68,6 @@ class LSPClient(object):
         """
         Read response asynchronously and handle methods.
         """
-        print("Reading response...")
         content_length = 0
         content_type = None
         # read headers
@@ -128,5 +127,4 @@ class LSPClient(object):
         """
         Delegate response to method handlers from the LSP server.
         """
-        print(f"Received response: {response}")
         await self.response_handler(response)

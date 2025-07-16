@@ -4,12 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from lsp_client.client import (
-    DEFAULT_CONTENT_TYPE,
-    DEFAULT_ENCODING,
-    SEPARATOR,
-    LSPClient,
-)
+from lsp_client.client import DEFAULT_CONTENT_TYPE, DEFAULT_ENCODING, SEPARATOR, LSPClient
 from lsp_client.protocol import InitializeRequest
 
 

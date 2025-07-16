@@ -1,6 +1,4 @@
-from lsp_client.protocol import (
-    CancelRequest,
-)
+from lsp_client.protocol import CancelRequest
 
 
 def test_cancel_request_todict():
