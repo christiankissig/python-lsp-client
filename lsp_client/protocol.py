@@ -10,6 +10,14 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 
+class BaseNotification(BaseModel):
+    """LSP notification — like a request but without an id field."""
+
+    jsonrpc: str = Field(default="2.0")
+    method: str
+    params: dict | None = Field(default=None)
+
+
 class BaseRequest(BaseModel):
     jsonrpc: str = Field(default="2.0")
     id: int
@@ -140,6 +148,13 @@ class InitializeRequest(BaseRequest):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "initialize"
         super(InitializeRequest, self).__init__(**kwargs)
+
+
+class InitializedNotification(BaseNotification):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "initialized"
+        kwargs.setdefault("params", {})
+        super(InitializedNotification, self).__init__(**kwargs)
 
 
 # Text Document Synchronization
