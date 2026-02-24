@@ -20,19 +20,9 @@ class BaseNotification(BaseModel):
 
 class BaseRequest(BaseModel):
     jsonrpc: str = Field(default="2.0")
-    id: int
+    id: int | None = Field(default=None)
     method: str
     params: dict | None = Field(default=None)
-
-    def __init__(self, **kwargs: Any) -> None:
-        # ID should be assigned by the caller (e.g. LSPClient) to avoid global
-        # mutable state. Callers must supply an `id` explicitly.
-        if "id" not in kwargs:
-            raise ValueError(
-                "BaseRequest requires an explicit `id`. "
-                "Assign IDs via LSPClient.send_request() rather than at construction time."
-            )
-        super(BaseRequest, self).__init__(**kwargs)
 
 
 class ProtocolError(Exception):
