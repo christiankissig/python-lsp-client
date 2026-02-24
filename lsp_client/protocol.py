@@ -9,9 +9,6 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
-# global request ID
-latest_request_id: int = 0
-
 
 class BaseRequest(BaseModel):
     jsonrpc: str = Field(default="2.0")
@@ -20,10 +17,13 @@ class BaseRequest(BaseModel):
     params: dict | None = Field(default=None)
 
     def __init__(self, **kwargs: Any) -> None:
-        global latest_request_id
-        latest_request_id += 1
+        # ID should be assigned by the caller (e.g. LSPClient) to avoid global
+        # mutable state. Callers must supply an `id` explicitly.
         if "id" not in kwargs:
-            kwargs["id"] = latest_request_id
+            raise ValueError(
+                "BaseRequest requires an explicit `id`. "
+                "Assign IDs via LSPClient.send_request() rather than at construction time."
+            )
         super(BaseRequest, self).__init__(**kwargs)
 
 
@@ -116,13 +116,13 @@ class WorkspaceClientCapabilities(BaseModel):
     diagnostics: dict | None
 
 
-class FileOperationsClientCapabilities:
-    didCreate: dict | None
-    willCreate: dict | None
-    didRename: dict | None
-    willRename: dict | None
-    didDelete: dict | None
-    willDelete: dict | None
+class FileOperationsClientCapabilities(BaseModel):
+    didCreate: dict | None = None
+    willCreate: dict | None = None
+    didRename: dict | None = None
+    willRename: dict | None = None
+    didDelete: dict | None = None
+    willDelete: dict | None = None
 
 
 class InitializeParams(WorkDoneProgressParams):
@@ -153,10 +153,10 @@ class TextDocumentItem(BaseModel):
     text: str
 
 
-class TextDocument_DidOpen_Request(BaseRequest):
+class TextDocumentDidOpenRequest(BaseRequest):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "textDocument/didOpen"
-        super(TextDocument_DidOpen_Request, self).__init__(**kwargs)
+        super(TextDocumentDidOpenRequest, self).__init__(**kwargs)
 
 
 class Position(BaseModel):
@@ -172,12 +172,17 @@ class Range(BaseModel):
 class ContentChange(BaseModel):
     text: str
     range: Range
-    rangeLength: int
+    # rangeLength is deprecated and optional per the LSP spec
+    rangeLength: Optional[int] = None
 
 
-class TextDocument_DidChange_Request(BaseRequest):
+class TextDocumentDidChangeRequest(BaseRequest):
     def __init__(
-        self, uri: str, version: str, contentChanges: List[ContentChange], **kwargs: Any
+        self,
+        uri: str,
+        version: int,
+        contentChanges: List[ContentChange],
+        **kwargs: Any,
     ) -> None:
         kwargs["method"] = "textDocument/didChange"
         if "params" in kwargs:
@@ -187,7 +192,7 @@ class TextDocument_DidChange_Request(BaseRequest):
         params["textDocument"] = {"uri": uri, "version": version}
         params["contentChanges"] = contentChanges
         kwargs["params"] = params
-        super(TextDocument_DidChange_Request, self).__init__(**kwargs)
+        super(TextDocumentDidChangeRequest, self).__init__(**kwargs)
 
 
 # $ Notifications and Requests
@@ -195,8 +200,8 @@ class TextDocument_DidChange_Request(BaseRequest):
 
 
 class CancelRequest(BaseRequest):
-    def __init__(self, language: str, **kwargs: Any) -> None:
-        kwargs["method"] = f"{language}/cancelRequest"
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "$/cancelRequest"
         super(CancelRequest, self).__init__(**kwargs)
 
 
@@ -206,6 +211,11 @@ class ProgressParams(BaseModel):
 
 
 class ProgressNotification(BaseRequest):
-    def __init__(self, language: str, **kwargs: Any) -> None:
-        kwargs["method"] = f"{language}/progress"
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "$/progress"
         super(ProgressNotification, self).__init__(**kwargs)
+
+
+# Backwards-compatible aliases for renamed classes
+TextDocument_DidOpen_Request = TextDocumentDidOpenRequest
+TextDocument_DidChange_Request = TextDocumentDidChangeRequest

@@ -5,10 +5,15 @@ from .protocol import (
     ContentChange,
     InitializeRequest,
     Position,
+    ProgressNotification,
+    ProgressParams,
     Range,
+    TextDocumentDidChangeRequest,
+    TextDocumentDidOpenRequest,
+    TextDocumentItem,
+    # Backwards-compatible aliases
     TextDocument_DidChange_Request,
     TextDocument_DidOpen_Request,
-    TextDocumentItem,
 )
 
 __all__ = [
@@ -19,7 +24,12 @@ __all__ = [
     "ContentChange",
     "InitializeRequest",
     "LSPClient",
+    "ProgressNotification",
+    "ProgressParams",
     "TextDocumentItem",
-    "TextDocument_DidChange_Request",
+    "TextDocumentDidOpenRequest",
+    "TextDocumentDidChangeRequest",
+    # Backwards-compatible aliases
     "TextDocument_DidOpen_Request",
+    "TextDocument_DidChange_Request",
 ]
