@@ -57,6 +57,8 @@ class LSPClient(object):
         Args:
             request: A BaseRequest object representing the request.
         """
+        if request.id is None:
+            request.id = _allocate_request_id()
         await self._send_request(request.model_dump())
 
     async def send_notification(self, notification: BaseNotification) -> None:
