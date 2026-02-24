@@ -3,7 +3,7 @@ import json
 import logging
 from typing import Any, Callable, Coroutine
 
-from .protocol import BaseRequest
+from .protocol import BaseNotification, BaseRequest
 from .utils import (
     DEFAULT_ENCODING,
     DEFAULT_CONTENT_MIME_TYPE,
@@ -58,6 +58,17 @@ class LSPClient(object):
             request: A BaseRequest object representing the request.
         """
         await self._send_request(request.model_dump())
+
+    async def send_notification(self, notification: BaseNotification) -> None:
+        """
+        Send a notification to the LSP server.
+
+        Notifications have no id and expect no response.
+
+        Args:
+            notification: A BaseNotification object representing the notification.
+        """
+        await self._send_request(notification.model_dump(exclude_none=True))
 
     def build_request(
         self, request_cls: type[BaseRequest], **kwargs: Any

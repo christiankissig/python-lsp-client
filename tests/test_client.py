@@ -10,7 +10,7 @@ from lsp_client.client import (
     SEPARATOR,
     LSPClient,
 )
-from lsp_client.protocol import InitializeRequest
+from lsp_client.protocol import InitializeRequest, InitializedNotification
 
 
 @pytest.mark.asyncio
@@ -37,3 +37,21 @@ async def test_send_request_headers():
 
         actual_request = json.loads(request_string)
         assert actual_request == test_request.model_dump()
+
+
+@pytest.mark.asyncio
+async def test_send_notification_no_id():
+    client = LSPClient(sys.stdin, sys.stdout, dict())
+    notification = InitializedNotification()
+
+    with patch.object(client, "_async_write_request") as mock_write_request:
+        await client.send_notification(notification)
+
+        mock_write_request.assert_called_once()
+        args, _ = mock_write_request.call_args
+        _, request_bytes = args
+        actual = json.loads(request_bytes.decode(DEFAULT_ENCODING))
+
+        assert actual["method"] == "initialized"
+        assert actual["jsonrpc"] == "2.0"
+        assert "id" not in actual
