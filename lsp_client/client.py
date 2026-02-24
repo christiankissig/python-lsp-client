@@ -11,6 +11,8 @@ from .utils import (
     parse_content_type,
 )
 
+DEFAULT_CONTENT_TYPE = DEFAULT_CONTENT_MIME_TYPE
+
 SEPARATOR = "\r\n"
 
 # Next request ID — managed here rather than in BaseRequest to keep protocol
