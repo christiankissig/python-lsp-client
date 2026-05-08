@@ -202,6 +202,59 @@ class TextDocumentDidChangeNotification(BaseNotification):
         super(TextDocumentDidChangeNotification, self).__init__(**kwargs)
 
 
+# Server Lifecycle — shutdown / exit
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#shutdown
+
+
+class ShutdownRequest(BaseRequest):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "shutdown"
+        super(ShutdownRequest, self).__init__(**kwargs)
+
+
+class ExitNotification(BaseNotification):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "exit"
+        super(ExitNotification, self).__init__(**kwargs)
+
+
+# Text Document — didClose, hover, completion, definition
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_synchronization # noqa: E501
+
+
+class TextDocumentDidCloseNotification(BaseNotification):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "textDocument/didClose"
+        super(TextDocumentDidCloseNotification, self).__init__(**kwargs)
+
+
+class TextDocumentIdentifier(BaseModel):
+    uri: str
+
+
+class TextDocumentPositionParams(BaseModel):
+    textDocument: TextDocumentIdentifier
+    position: Position
+
+
+class HoverRequest(BaseRequest):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "textDocument/hover"
+        super(HoverRequest, self).__init__(**kwargs)
+
+
+class CompletionRequest(BaseRequest):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "textDocument/completion"
+        super(CompletionRequest, self).__init__(**kwargs)
+
+
+class DefinitionRequest(BaseRequest):
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "textDocument/definition"
+        super(DefinitionRequest, self).__init__(**kwargs)
+
+
 # $ Notifications and Requests
 # See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#dollarRequests
 
