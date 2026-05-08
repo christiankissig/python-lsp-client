@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sys
 from unittest.mock import patch
@@ -64,3 +65,12 @@ def test_request_id_per_instance():
     assert client_a._allocate_request_id() == 1
     assert client_a._allocate_request_id() == 2
     assert client_b._allocate_request_id() == 1  # independent counter
+
+
+@pytest.mark.asyncio
+async def test_listen_exits_cleanly_on_eof():
+    reader = asyncio.StreamReader()
+    reader.feed_eof()
+
+    client = LSPClient(None, reader, dict())
+    await client.listen()  # must return without raising

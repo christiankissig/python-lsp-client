@@ -105,6 +105,8 @@ class LSPClient(object):
         try:
             while True:
                 await self.read_response()
+        except EOFError:
+            self.logger.info("LSPClient.listen() — server closed the connection.")
         except asyncio.CancelledError:
             self.logger.debug("LSPClient.listen() cancelled — shutting down.")
             raise
@@ -119,6 +121,8 @@ class LSPClient(object):
         # Read headers until the blank separator line.
         while True:
             line = await self._async_read_line()
+            if line == b"":
+                raise EOFError("LSP server closed its stdout")
             # Strip \r\n / \n so header parsing is not sensitive to line endings.
             decoded_line = line.decode(DEFAULT_ENCODING).rstrip("\r\n")
             if decoded_line.startswith("Content-Length:"):
@@ -161,8 +165,10 @@ class LSPClient(object):
         assert self.stdout is not None
         response = await self.stdout.read(content_length)
         while len(response) < content_length:
-            remaining_length = content_length - len(response)
-            response += await self.stdout.read(remaining_length)
+            chunk = await self.stdout.read(content_length - len(response))
+            if chunk == b"":
+                raise EOFError("LSP server closed its stdout mid-message")
+            response += chunk
         return response
 
     async def _async_read_line(self) -> bytes:
