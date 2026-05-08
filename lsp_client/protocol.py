@@ -176,7 +176,7 @@ class Range(BaseModel):
 
 class ContentChange(BaseModel):
     text: str
-    range: Range
+    range: Optional[Range] = None
     # rangeLength is deprecated and optional per the LSP spec
     rangeLength: Optional[int] = None
 

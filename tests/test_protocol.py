@@ -60,3 +60,10 @@ def test_progress_notification_no_id():
     data = notification.model_dump(exclude_none=True)
     assert "id" not in data
     assert data["method"] == "$/progress"
+
+
+def test_content_change_range_optional():
+    change = ContentChange(text="hello world")
+    data = change.model_dump(exclude_none=True)
+    assert data == {"text": "hello world"}
+    assert "range" not in data
