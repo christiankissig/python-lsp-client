@@ -1,6 +1,9 @@
 from lsp_client.protocol import (
     CancelRequest,
+    ClientInfo,
     ContentChange,
+    InitializeParams,
+    InitializeRequest,
     InitializedNotification,
     Position,
     ProgressNotification,
@@ -67,3 +70,21 @@ def test_content_change_range_optional():
     data = change.model_dump(exclude_none=True)
     assert data == {"text": "hello world"}
     assert "range" not in data
+
+
+def test_initialize_request_with_params():
+    params = InitializeParams(
+        processId=1234,
+        clientInfo=ClientInfo(name="test-client"),
+        rootUri="file:///tmp",
+    )
+    request = InitializeRequest(id=1, params=params)
+    data = request.model_dump(exclude_none=True)
+
+    assert data["method"] == "initialize"
+    assert data["id"] == 1
+    assert data["params"]["rootUri"] == "file:///tmp"
+    assert data["params"]["clientInfo"] == {"name": "test-client"}
+    # Optional fields with None values are excluded
+    assert "rootPath" not in data["params"]
+    assert "workspaceFolders" not in data["params"]

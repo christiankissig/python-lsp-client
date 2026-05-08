@@ -43,21 +43,21 @@ class ProtocolError(Exception):
 
 
 class WorkDoneProgressParams(BaseModel):
-    workDoneToken: int | str
+    workDoneToken: int | str | None = None
 
 
 class ClientInfo(BaseModel):
     name: str
-    version: str | None
+    version: str | None = None
 
 
 class ClientCapabilities(BaseModel):
-    workspace: dict | None
-    textDocument: dict | None
-    notebook: dict | None
-    window: dict | None
-    general: dict | None
-    experimental: dict | None
+    workspace: dict | None = None
+    textDocument: dict | None = None
+    notebook: dict | None = None
+    window: dict | None = None
+    general: dict | None = None
+    experimental: dict | None = None
 
 
 class TextDocumentClientCapabilities(BaseModel):
@@ -124,19 +124,21 @@ class FileOperationsClientCapabilities(BaseModel):
 
 
 class InitializeParams(WorkDoneProgressParams):
-    processId: int
-    clientInfo: ClientInfo
-    rootPath: str | None
+    processId: int | None = None
+    clientInfo: ClientInfo | None = None
+    rootPath: str | None = None
     rootUri: str
-    initializationOptions: dict | None
-    capabilities: ClientCapabilities
-    trace: str | None
-    workspaceFolders: list[dict] | None
+    initializationOptions: dict | None = None
+    capabilities: ClientCapabilities = Field(default_factory=ClientCapabilities)
+    trace: str | None = None
+    workspaceFolders: list[dict] | None = None
 
 
 class InitializeRequest(BaseRequest):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "initialize"
+        if isinstance(kwargs.get("params"), InitializeParams):
+            kwargs["params"] = kwargs["params"].model_dump(exclude_none=True)
         super(InitializeRequest, self).__init__(**kwargs)
 
 
