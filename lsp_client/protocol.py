@@ -205,8 +205,8 @@ class TextDocumentDidChangeNotification(BaseNotification):
 
 
 class CancelRequest(BaseRequest):
-    def __init__(self, language: str = "$", **kwargs: Any) -> None:
-        kwargs["method"] = f"{language}/cancelRequest"
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "$/cancelRequest"
         super(CancelRequest, self).__init__(**kwargs)
 
 
