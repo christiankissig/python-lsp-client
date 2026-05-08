@@ -1,7 +1,7 @@
 import asyncio
 import json
 import sys
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -74,3 +74,28 @@ async def test_listen_exits_cleanly_on_eof():
 
     client = LSPClient(None, reader, dict())
     await client.listen()  # must return without raising
+
+
+@pytest.mark.asyncio
+async def test_from_command_wires_streams():
+    mock_proc = MagicMock()
+    mock_proc.stdin = MagicMock(spec=asyncio.StreamWriter)
+    mock_proc.stdout = MagicMock(spec=asyncio.StreamReader)
+
+    async def handler(response: dict) -> None:
+        pass
+
+    with patch(
+        "asyncio.create_subprocess_exec", new=AsyncMock(return_value=mock_proc)
+    ) as mock_exec:
+        client, proc = await LSPClient.from_command("pylsp", response_handler=handler)
+
+        mock_exec.assert_called_once_with(
+            "pylsp",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        assert client.stdin is mock_proc.stdin
+        assert client.stdout is mock_proc.stdout
+        assert proc is mock_proc

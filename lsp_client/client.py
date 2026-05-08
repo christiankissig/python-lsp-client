@@ -65,6 +65,29 @@ class LSPClient(object):
         """
         await self._send_request(notification.model_dump(exclude_none=True))
 
+    @classmethod
+    async def from_command(
+        cls,
+        *cmd: str,
+        response_handler: Callable[[dict[Any, Any]], Coroutine[Any, Any, None]],
+        logger: logging.Logger | None = None,
+    ) -> tuple["LSPClient", asyncio.subprocess.Process]:
+        """
+        Spawn an LSP server subprocess and return a ready-to-use client.
+
+        Args:
+            *cmd: The command and arguments to launch the LSP server.
+            response_handler: Async callable that receives each parsed response.
+            logger: Optional logger; defaults to the module logger.
+        """
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        return cls(proc.stdin, proc.stdout, response_handler, logger), proc
+
     def build_request(
         self, request_cls: type[BaseRequest], **kwargs: Any
     ) -> BaseRequest:
