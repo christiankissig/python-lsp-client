@@ -15,16 +15,6 @@ DEFAULT_CONTENT_TYPE = DEFAULT_CONTENT_MIME_TYPE
 
 SEPARATOR = "\r\n"
 
-# Next request ID — managed here rather than in BaseRequest to keep protocol
-# objects pure data and avoid global mutable state in protocol.py.
-_next_request_id: int = 0
-
-
-def _allocate_request_id() -> int:
-    global _next_request_id
-    _next_request_id += 1
-    return _next_request_id
-
 
 class LSPClient(object):
     """
@@ -49,6 +39,11 @@ class LSPClient(object):
         self.response_handler = response_handler
         self.stdin = stdin
         self.stdout = stdout
+        self._next_request_id: int = 0
+
+    def _allocate_request_id(self) -> int:
+        self._next_request_id += 1
+        return self._next_request_id
 
     async def send_request(self, request: BaseRequest) -> None:
         """
@@ -58,7 +53,7 @@ class LSPClient(object):
             request: A BaseRequest object representing the request.
         """
         if request.id is None:
-            request.id = _allocate_request_id()
+            request.id = self._allocate_request_id()
         await self._send_request(request.model_dump())
 
     async def send_notification(self, notification: BaseNotification) -> None:
@@ -81,7 +76,7 @@ class LSPClient(object):
         Prefer this over constructing requests directly so that ID management
         stays centralised in LSPClient.
         """
-        return request_cls(id=_allocate_request_id(), **kwargs)
+        return request_cls(id=self._allocate_request_id(), **kwargs)
 
     async def _send_request(self, request: dict) -> None:
         """
