@@ -6,11 +6,11 @@ from unittest.mock import patch
 import pytest
 
 from lsp_client.client import (
-    DEFAULT_CONTENT_TYPE,
     DEFAULT_ENCODING,
     SEPARATOR,
     LSPClient,
 )
+from lsp_client.utils import DEFAULT_CONTENT_TYPE
 from lsp_client.protocol import InitializeRequest, InitializedNotification
 
 
@@ -33,7 +33,7 @@ async def test_send_request_headers():
         # Check the Content-Length header
         expected_content_length = f"Content-Length: {len(request_bytes)}{SEPARATOR}"
         assert expected_content_length in header_string
-        expected_content_type = f"Content-Type: {DEFAULT_CONTENT_TYPE}; charset={DEFAULT_ENCODING}{SEPARATOR}"
+        expected_content_type = f"Content-Type: {DEFAULT_CONTENT_TYPE}{SEPARATOR}"
         assert expected_content_type in header_string
 
         actual_request = json.loads(request_string)
