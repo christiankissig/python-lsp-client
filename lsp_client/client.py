@@ -5,13 +5,11 @@ from typing import Any, Callable, Coroutine
 
 from .protocol import BaseNotification, BaseRequest
 from .utils import (
+    DEFAULT_CONTENT_TYPE,
     DEFAULT_ENCODING,
-    DEFAULT_CONTENT_MIME_TYPE,
     EncodingError,
     parse_content_type,
 )
-
-DEFAULT_CONTENT_TYPE = DEFAULT_CONTENT_MIME_TYPE
 
 SEPARATOR = "\r\n"
 
@@ -88,10 +86,7 @@ class LSPClient(object):
         request_string = json.dumps(request)
         request_bytes = request_string.encode(DEFAULT_ENCODING)
         header_string = f"Content-Length: {len(request_bytes)}{SEPARATOR}"
-        # Use the shared constant from utils rather than a local copy
-        header_string += (
-            f"Content-Type: {DEFAULT_CONTENT_MIME_TYPE}; charset={DEFAULT_ENCODING}"
-        )
+        header_string += f"Content-Type: {DEFAULT_CONTENT_TYPE}"
         header_string += f"{SEPARATOR}{SEPARATOR}"
         header_bytes = header_string.encode(DEFAULT_ENCODING)
 
