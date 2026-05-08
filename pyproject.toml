@@ -2,30 +2,34 @@
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry]
+[project]
 name = "lsp_client"
 version = "0.0.3"
 description = "A client implementation of the Language Server Protocol in Python"
-authors = ["Christian Kissig"]
 readme = "README.rst"
-license = "MIT"
-homepage = "https://github.com/christiankissig/python-lsp-client"
-repository = "https://github.com/christiankissig/python-lsp-client"
-documentation = "https://github.com/christiankissig/python-lsp-client"
-packages = [{include = "lsp_client"}]
+license = {text = "MIT"}
+authors = [{name = "Christian Kissig"}]
+requires-python = ">=3.10"
 classifiers = [
-  "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent"
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pydantic>=2.9.0,<3.0.0",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-mypy = "^1.9.0"
-pydantic = "^2.9.0"
+[project.urls]
+Homepage = "https://github.com/christiankissig/python-lsp-client"
+Repository = "https://github.com/christiankissig/python-lsp-client"
+Documentation = "https://github.com/christiankissig/python-lsp-client"
+
+[tool.poetry]
+packages = [{include = "lsp_client"}]
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
+mypy = "^1.9.0"
 pytest-asyncio = "^1.0.0"
 pytest-cov = "^4.1.0"
 pytest = "^8.0.0"
