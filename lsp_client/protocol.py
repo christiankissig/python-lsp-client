@@ -158,10 +158,10 @@ class TextDocumentItem(BaseModel):
     text: str
 
 
-class TextDocumentDidOpenRequest(BaseRequest):
+class TextDocumentDidOpenNotification(BaseNotification):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "textDocument/didOpen"
-        super(TextDocumentDidOpenRequest, self).__init__(**kwargs)
+        super(TextDocumentDidOpenNotification, self).__init__(**kwargs)
 
 
 class Position(BaseModel):
@@ -181,7 +181,7 @@ class ContentChange(BaseModel):
     rangeLength: Optional[int] = None
 
 
-class TextDocumentDidChangeRequest(BaseRequest):
+class TextDocumentDidChangeNotification(BaseNotification):
     def __init__(
         self,
         uri: str,
@@ -197,7 +197,7 @@ class TextDocumentDidChangeRequest(BaseRequest):
         params["textDocument"] = {"uri": uri, "version": version}
         params["contentChanges"] = contentChanges
         kwargs["params"] = params
-        super(TextDocumentDidChangeRequest, self).__init__(**kwargs)
+        super(TextDocumentDidChangeNotification, self).__init__(**kwargs)
 
 
 # $ Notifications and Requests
@@ -215,12 +215,14 @@ class ProgressParams(BaseModel):
     value: dict
 
 
-class ProgressNotification(BaseRequest):
+class ProgressNotification(BaseNotification):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "$/progress"
         super(ProgressNotification, self).__init__(**kwargs)
 
 
 # Backwards-compatible aliases for renamed classes
-TextDocument_DidOpen_Request = TextDocumentDidOpenRequest
-TextDocument_DidChange_Request = TextDocumentDidChangeRequest
+TextDocumentDidOpenRequest = TextDocumentDidOpenNotification
+TextDocumentDidChangeRequest = TextDocumentDidChangeNotification
+TextDocument_DidOpen_Request = TextDocumentDidOpenNotification
+TextDocument_DidChange_Request = TextDocumentDidChangeNotification

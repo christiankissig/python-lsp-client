@@ -1,4 +1,13 @@
-from lsp_client.protocol import CancelRequest, InitializedNotification
+from lsp_client.protocol import (
+    CancelRequest,
+    ContentChange,
+    InitializedNotification,
+    Position,
+    ProgressNotification,
+    Range,
+    TextDocumentDidChangeNotification,
+    TextDocumentDidOpenNotification,
+)
 
 
 def test_cancel_request_todict():
@@ -22,3 +31,32 @@ def test_initialized_notification_no_id():
 def test_initialized_notification_method():
     notification = InitializedNotification()
     assert notification.method == "initialized"
+
+
+def test_did_open_notification_no_id():
+    notification = TextDocumentDidOpenNotification()
+    data = notification.model_dump(exclude_none=True)
+    assert "id" not in data
+    assert data["method"] == "textDocument/didOpen"
+
+
+def test_did_change_notification_no_id():
+    change = ContentChange(
+        text="hello",
+        range=Range(
+            start=Position(line=0, character=0), end=Position(line=0, character=5)
+        ),
+    )
+    notification = TextDocumentDidChangeNotification(
+        uri="file:///tmp/test.py", version=1, contentChanges=[change]
+    )
+    data = notification.model_dump(exclude_none=True)
+    assert "id" not in data
+    assert data["method"] == "textDocument/didChange"
+
+
+def test_progress_notification_no_id():
+    notification = ProgressNotification()
+    data = notification.model_dump(exclude_none=True)
+    assert "id" not in data
+    assert data["method"] == "$/progress"
