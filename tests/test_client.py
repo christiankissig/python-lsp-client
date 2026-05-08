@@ -55,3 +55,12 @@ async def test_send_notification_no_id():
         assert actual["method"] == "initialized"
         assert actual["jsonrpc"] == "2.0"
         assert "id" not in actual
+
+
+def test_request_id_per_instance():
+    client_a = LSPClient(None, None, dict())
+    client_b = LSPClient(None, None, dict())
+
+    assert client_a._allocate_request_id() == 1
+    assert client_a._allocate_request_id() == 2
+    assert client_b._allocate_request_id() == 1  # independent counter
