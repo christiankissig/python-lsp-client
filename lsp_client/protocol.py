@@ -300,6 +300,24 @@ class InitializeRequest(BaseRequest):
         super(InitializeRequest, self).__init__(**kwargs)
 
 
+class ServerInfo(BaseModel):
+    """Information about the server. @since 3.15.0"""
+
+    #: The name of the server as defined by the server.
+    name: str
+    #: The server's version as defined by the server.
+    version: str | None = None
+
+
+class InitializeResult(BaseModel):
+    """The result returned from an ``initialize`` request."""
+
+    #: The capabilities the language server provides.
+    capabilities: ServerCapabilities
+    #: Information about the server. @since 3.15.0
+    serverInfo: ServerInfo | None = None
+
+
 class InitializedNotification(BaseNotification):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "initialized"
