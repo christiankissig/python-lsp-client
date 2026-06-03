@@ -18,6 +18,14 @@ from lsp_client.protocol import (
     TextDocumentDidOpenNotification,
     TextDocumentIdentifier,
     TextDocumentPositionParams,
+    WorkDoneProgressBegin,
+    WorkDoneProgressCancelNotification,
+    WorkDoneProgressCancelParams,
+    WorkDoneProgressCreateParams,
+    WorkDoneProgressCreateRequest,
+    WorkDoneProgressEnd,
+    WorkDoneProgressOptions,
+    WorkDoneProgressReport,
 )
 
 
@@ -147,3 +155,54 @@ def test_definition_request():
     data = req.model_dump(exclude_none=True)
     assert data["method"] == "textDocument/definition"
     assert data["params"]["textDocument"]["uri"] == "file:///tmp/test.py"
+
+
+def test_work_done_progress_begin():
+    begin = WorkDoneProgressBegin(title="Indexing", percentage=0)
+    data = begin.model_dump(exclude_none=True)
+    assert data == {"kind": "begin", "title": "Indexing", "percentage": 0}
+    # Optional fields with None values are excluded
+    assert "message" not in data
+    assert "cancellable" not in data
+
+
+def test_work_done_progress_report():
+    report = WorkDoneProgressReport(message="halfway", percentage=50)
+    data = report.model_dump(exclude_none=True)
+    assert data == {"kind": "report", "message": "halfway", "percentage": 50}
+
+
+def test_work_done_progress_end():
+    end = WorkDoneProgressEnd(message="done")
+    data = end.model_dump(exclude_none=True)
+    assert data == {"kind": "end", "message": "done"}
+
+
+def test_work_done_progress_end_minimal():
+    data = WorkDoneProgressEnd().model_dump(exclude_none=True)
+    assert data == {"kind": "end"}
+
+
+def test_work_done_progress_options():
+    data = WorkDoneProgressOptions(workDoneProgress=True).model_dump(exclude_none=True)
+    assert data == {"workDoneProgress": True}
+
+
+def test_work_done_progress_create_request():
+    req = WorkDoneProgressCreateRequest(
+        id=1, params=WorkDoneProgressCreateParams(token="token-1")
+    )
+    data = req.model_dump(exclude_none=True)
+    assert data["method"] == "window/workDoneProgress/create"
+    assert data["id"] == 1
+    assert data["params"] == {"token": "token-1"}
+
+
+def test_work_done_progress_cancel_notification():
+    notif = WorkDoneProgressCancelNotification(
+        params=WorkDoneProgressCancelParams(token=42)
+    )
+    data = notif.model_dump(exclude_none=True)
+    assert data["method"] == "window/workDoneProgress/cancel"
+    assert "id" not in data
+    assert data["params"] == {"token": 42}

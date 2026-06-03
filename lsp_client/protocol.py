@@ -5,7 +5,7 @@ See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17
 for reference, and what a correct and complete implementation should look like.
 """
 
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -265,8 +265,13 @@ class CancelRequest(BaseRequest):
         super(CancelRequest, self).__init__(**kwargs)
 
 
+# A progress token is either an integer or a string, supplied by whichever
+# side initiates the progress sequence.
+ProgressToken = int | str
+
+
 class ProgressParams(BaseModel):
-    token: int | str
+    token: ProgressToken
     value: dict
 
 
@@ -274,6 +279,73 @@ class ProgressNotification(BaseNotification):
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "$/progress"
         super(ProgressNotification, self).__init__(**kwargs)
+
+
+# Work Done Progress
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workDoneProgress  # noqa: E501
+
+
+class WorkDoneProgressBegin(BaseModel):
+    """Payload signalling the start of a work done progress sequence.
+
+    Sent as the ``value`` of a ``$/progress`` notification.
+    """
+
+    kind: Literal["begin"] = "begin"
+    title: str
+    cancellable: bool | None = None
+    message: str | None = None
+    percentage: int | None = None
+
+
+class WorkDoneProgressReport(BaseModel):
+    """Payload reporting progress within an ongoing work done sequence."""
+
+    kind: Literal["report"] = "report"
+    cancellable: bool | None = None
+    message: str | None = None
+    percentage: int | None = None
+
+
+class WorkDoneProgressEnd(BaseModel):
+    """Payload signalling the end of a work done progress sequence."""
+
+    kind: Literal["end"] = "end"
+    message: str | None = None
+
+
+class WorkDoneProgressOptions(BaseModel):
+    """Server capability marker for features that support work done progress."""
+
+    workDoneProgress: bool | None = None
+
+
+class WorkDoneProgressCreateParams(BaseModel):
+    token: ProgressToken
+
+
+class WorkDoneProgressCreateRequest(BaseRequest):
+    """Server -> client request asking the client to create a progress token."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "window/workDoneProgress/create"
+        if isinstance(kwargs.get("params"), WorkDoneProgressCreateParams):
+            kwargs["params"] = kwargs["params"].model_dump(exclude_none=True)
+        super(WorkDoneProgressCreateRequest, self).__init__(**kwargs)
+
+
+class WorkDoneProgressCancelParams(BaseModel):
+    token: ProgressToken
+
+
+class WorkDoneProgressCancelNotification(BaseNotification):
+    """Client -> server notification cancelling a work done progress sequence."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "window/workDoneProgress/cancel"
+        if isinstance(kwargs.get("params"), WorkDoneProgressCancelParams):
+            kwargs["params"] = kwargs["params"].model_dump(exclude_none=True)
+        super(WorkDoneProgressCancelNotification, self).__init__(**kwargs)
 
 
 # Backwards-compatible aliases for renamed classes
