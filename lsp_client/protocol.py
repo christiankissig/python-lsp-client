@@ -8,7 +8,7 @@ for reference, and what a correct and complete implementation should look like.
 from enum import Enum, IntEnum
 from typing import Annotated, Any, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # Position Encoding
@@ -60,7 +60,12 @@ class BaseRequest(Message):
 
 
 class ResponseError(BaseModel):
-    """The error object returned on a failed request."""
+    """The error object returned on a failed request.
+
+    ``code`` is a number indicating the error type (see :class:`ErrorCodes` and
+    :class:`LSPErrorCodes`), ``message`` a short human-readable description, and
+    ``data`` an optional primitive or structured value with extra detail.
+    """
 
     code: int
     message: str
@@ -71,45 +76,75 @@ class ResponseMessage(Message):
     """A response to a request.
 
     ``id`` may be ``null`` when the request id could not be determined (e.g. a
-    parse error). Exactly one of ``result`` / ``error`` is present per the spec.
+    parse error). Per the spec ``result`` is required on success and must not be
+    present on error, so a response carries at most one of ``result`` / ``error``.
     """
 
     id: int | str | None = None
     result: Any | None = None
     error: ResponseError | None = None
 
+    @model_validator(mode="after")
+    def _check_result_xor_error(self) -> "ResponseMessage":
+        if self.result is not None and self.error is not None:
+            raise ValueError(
+                "a ResponseMessage must not carry both 'result' and 'error'"
+            )
+        return self
+
 
 class ErrorCodes(IntEnum):
-    """JSON-RPC and LSP-defined error codes.
+    """Error codes defined by JSON-RPC.
 
     Codes that share a value (e.g. ``serverErrorStart`` /
-    ``jsonrpcReservedErrorRangeStart``) resolve to enum aliases.
+    ``jsonrpcReservedErrorRangeStart``) resolve to enum aliases. LSP-defined
+    codes live in their own range; see :class:`LSPErrorCodes`.
     """
 
-    # Defined by JSON-RPC
     ParseError = -32700
     InvalidRequest = -32600
     MethodNotFound = -32601
     InvalidParams = -32602
     InternalError = -32603
 
+    # Start range of JSON-RPC reserved error codes. Does not denote a real
+    # error code. ``ServerNotInitialized`` / ``UnknownErrorCode`` are kept in
+    # this range for backwards compatibility. @since 3.16.0
     jsonrpcReservedErrorRangeStart = -32099
+    #: @deprecated use ``jsonrpcReservedErrorRangeStart``
     serverErrorStart = -32099
 
     ServerNotInitialized = -32002
     UnknownErrorCode = -32001
 
+    # End range of JSON-RPC reserved error codes. Does not denote a real error
+    # code. @since 3.16.0
     jsonrpcReservedErrorRangeEnd = -32000
+    #: @deprecated use ``jsonrpcReservedErrorRangeEnd``
     serverErrorEnd = -32000
 
-    # Defined by LSP
+
+class LSPErrorCodes(IntEnum):
+    """Error codes defined by the Language Server Protocol itself."""
+
+    # Start range of LSP reserved error codes. Does not denote a real error
+    # code. @since 3.16.0
     lspReservedErrorRangeStart = -32899
 
+    #: A request failed but was syntactically correct (known method, valid
+    #: params); the message should explain why. @since 3.17.0
     RequestFailed = -32803
+    #: The server cancelled the request; only for explicitly server-cancellable
+    #: requests. @since 3.17.0
     ServerCancelled = -32802
+    #: The document content was modified outside normal conditions, so the
+    #: result may be stale.
     ContentModified = -32801
+    #: The client cancelled a request and the server detected the cancellation.
     RequestCancelled = -32800
 
+    # End range of LSP reserved error codes. Does not denote a real error code.
+    # @since 3.16.0 (aliases ``RequestCancelled``)
     lspReservedErrorRangeEnd = -32800
 
 
