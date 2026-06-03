@@ -432,6 +432,85 @@ class Range(BaseModel):
     end: Position
 
 
+# Location
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#location  # noqa: E501
+
+
+class Location(BaseModel):
+    """A range inside a text document, identified by its URI."""
+
+    uri: str
+    range: Range
+
+
+# Diagnostic
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic  # noqa: E501
+
+
+class DiagnosticSeverity(IntEnum):
+    """How severe a diagnostic is."""
+
+    Error = 1
+    Warning = 2
+    Information = 3
+    Hint = 4
+
+
+class DiagnosticTag(IntEnum):
+    """Additional metadata about a diagnostic. @since 3.15.0"""
+
+    #: Unused or unnecessary code — clients may render this faded out.
+    Unnecessary = 1
+    #: Deprecated or obsolete code — clients may render this struck through.
+    Deprecated = 2
+
+
+class CodeDescription(BaseModel):
+    """A structure describing a diagnostic's error code. @since 3.16.0"""
+
+    #: A URI to open with more information about the diagnostic error.
+    href: str
+
+
+class DiagnosticRelatedInformation(BaseModel):
+    """A related message and source location for a diagnostic.
+
+    Used e.g. when symbol names within a scope collide, to point at every
+    colliding definition.
+    """
+
+    location: Location
+    message: str
+
+
+class Diagnostic(BaseModel):
+    """A diagnostic, such as a compiler error or warning.
+
+    Diagnostic objects are only valid in the scope of a resource.
+    """
+
+    #: The range at which the message applies.
+    range: Range
+    #: The diagnostic's severity. If omitted the client interprets it.
+    severity: DiagnosticSeverity | None = None
+    #: The diagnostic's code, which may appear in the user interface.
+    code: int | str | None = None
+    #: An optional structure describing the error code. @since 3.16.0
+    codeDescription: CodeDescription | None = None
+    #: A human-readable description of the diagnostic's source, e.g.
+    #: ``"typescript"`` or ``"super lint"``.
+    source: str | None = None
+    #: The diagnostic's message.
+    message: str
+    #: Additional metadata about the diagnostic. @since 3.15.0
+    tags: list[DiagnosticTag] | None = None
+    #: An array of related diagnostic information.
+    relatedInformation: list[DiagnosticRelatedInformation] | None = None
+    #: A data entry preserved between a ``textDocument/publishDiagnostics``
+    #: notification and a ``textDocument/codeAction`` request. @since 3.16.0
+    data: Any | None = None
+
+
 class ContentChange(BaseModel):
     text: str
     range: Optional[Range] = None
