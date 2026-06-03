@@ -21,6 +21,7 @@ from lsp_client.protocol import (
     HoverRequest,
     InitializeParams,
     InitializeRequest,
+    InitializeResult,
     InitializedNotification,
     LanguageKind,
     Location,
@@ -35,6 +36,7 @@ from lsp_client.protocol import (
     ResponseError,
     ResponseMessage,
     ServerCapabilities,
+    ServerInfo,
     ShutdownRequest,
     TextDocumentDidChangeNotification,
     TextDocumentDidCloseNotification,
@@ -460,6 +462,50 @@ def test_server_capabilities_position_encoding():
 def test_server_capabilities_position_encoding_optional():
     # Absent positionEncoding means utf-16 is assumed; nothing is serialised.
     assert ServerCapabilities().model_dump(exclude_none=True) == {}
+
+
+def test_initialize_result_minimal():
+    result = InitializeResult(capabilities=ServerCapabilities())
+    data = result.model_dump(exclude_none=True)
+    # Only capabilities is required; serverInfo is omitted when absent.
+    assert data == {"capabilities": {}}
+    assert "serverInfo" not in data
+
+
+def test_initialize_result_with_server_info():
+    result = InitializeResult(
+        capabilities=ServerCapabilities(positionEncoding=PositionEncodingKind.UTF8),
+        serverInfo=ServerInfo(name="pyright", version="1.1.0"),
+    )
+    data = result.model_dump(exclude_none=True)
+    assert data == {
+        "capabilities": {"positionEncoding": "utf-8"},
+        "serverInfo": {"name": "pyright", "version": "1.1.0"},
+    }
+
+
+def test_server_info_version_optional():
+    data = ServerInfo(name="gopls").model_dump(exclude_none=True)
+    assert data == {"name": "gopls"}
+
+
+def test_server_info_requires_name():
+    with pytest.raises(ValidationError):
+        ServerInfo()
+
+
+def test_initialize_result_parses_from_response_payload():
+    # A server's initialize response coerces into nested models.
+    result = InitializeResult.model_validate(
+        {
+            "capabilities": {"positionEncoding": "utf-16"},
+            "serverInfo": {"name": "rust-analyzer"},
+        }
+    )
+    assert result.capabilities.positionEncoding == PositionEncodingKind.UTF16
+    assert result.serverInfo is not None
+    assert result.serverInfo.name == "rust-analyzer"
+    assert result.serverInfo.version is None
 
 
 def _range() -> Range:
