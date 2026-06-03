@@ -2,12 +2,14 @@ from lsp_client.protocol import (
     BaseNotification,
     BaseRequest,
     CancelRequest,
+    ClientCapabilities,
     ClientInfo,
     CompletionRequest,
     ContentChange,
     DefinitionRequest,
     ErrorCodes,
     ExitNotification,
+    GeneralClientCapabilities,
     HoverRequest,
     InitializeParams,
     InitializeRequest,
@@ -15,11 +17,13 @@ from lsp_client.protocol import (
     Message,
     NotificationMessage,
     Position,
+    PositionEncodingKind,
     ProgressNotification,
     Range,
     RequestMessage,
     ResponseError,
     ResponseMessage,
+    ServerCapabilities,
     ShutdownRequest,
     TextDocumentDidChangeNotification,
     TextDocumentDidCloseNotification,
@@ -255,6 +259,66 @@ def test_response_message_null_id():
     )
     data = response.model_dump()
     assert data["id"] is None
+
+
+def test_position_encoding_kind_values():
+    assert PositionEncodingKind.UTF8 == "utf-8"
+    assert PositionEncodingKind.UTF16 == "utf-16"
+    assert PositionEncodingKind.UTF32 == "utf-32"
+
+
+def test_general_client_capabilities_position_encodings():
+    general = GeneralClientCapabilities(
+        positionEncodings=[
+            PositionEncodingKind.UTF8,
+            PositionEncodingKind.UTF16,
+        ]
+    )
+    data = general.model_dump(exclude_none=True)
+    assert data == {"positionEncodings": ["utf-8", "utf-16"]}
+    # Unset general sub-capabilities are excluded.
+    assert "markdown" not in data
+
+
+def test_client_capabilities_advertise_position_encodings():
+    caps = ClientCapabilities(
+        general=GeneralClientCapabilities(
+            positionEncodings=[PositionEncodingKind.UTF32]
+        )
+    )
+    data = caps.model_dump(exclude_none=True)
+    assert data == {"general": {"positionEncodings": ["utf-32"]}}
+
+
+def test_initialize_request_with_position_encodings():
+    params = InitializeParams(
+        rootUri="file:///tmp",
+        capabilities=ClientCapabilities(
+            general=GeneralClientCapabilities(
+                positionEncodings=[
+                    PositionEncodingKind.UTF8,
+                    PositionEncodingKind.UTF16,
+                ]
+            )
+        ),
+    )
+    request = InitializeRequest(id=1, params=params)
+    data = request.model_dump(exclude_none=True)
+    assert data["params"]["capabilities"]["general"]["positionEncodings"] == [
+        "utf-8",
+        "utf-16",
+    ]
+
+
+def test_server_capabilities_position_encoding():
+    caps = ServerCapabilities(positionEncoding=PositionEncodingKind.UTF8)
+    data = caps.model_dump(exclude_none=True)
+    assert data == {"positionEncoding": "utf-8"}
+
+
+def test_server_capabilities_position_encoding_optional():
+    # Absent positionEncoding means utf-16 is assumed; nothing is serialised.
+    assert ServerCapabilities().model_dump(exclude_none=True) == {}
 
 
 def test_error_codes_values():
