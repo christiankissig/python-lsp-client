@@ -1,17 +1,25 @@
 from lsp_client.protocol import (
+    BaseNotification,
+    BaseRequest,
     CancelRequest,
     ClientInfo,
     CompletionRequest,
     ContentChange,
     DefinitionRequest,
+    ErrorCodes,
     ExitNotification,
     HoverRequest,
     InitializeParams,
     InitializeRequest,
     InitializedNotification,
+    Message,
+    NotificationMessage,
     Position,
     ProgressNotification,
     Range,
+    RequestMessage,
+    ResponseError,
+    ResponseMessage,
     ShutdownRequest,
     TextDocumentDidChangeNotification,
     TextDocumentDidCloseNotification,
@@ -206,3 +214,54 @@ def test_work_done_progress_cancel_notification():
     assert data["method"] == "window/workDoneProgress/cancel"
     assert "id" not in data
     assert data["params"] == {"token": 42}
+
+
+def test_message_base_defaults():
+    message = Message()
+    assert message.jsonrpc == "2.0"
+    assert message.model_dump() == {"jsonrpc": "2.0"}
+
+
+def test_requests_and_notifications_are_messages():
+    # The base protocol abstract Message is the root of every message type.
+    assert issubclass(BaseRequest, Message)
+    assert issubclass(BaseNotification, Message)
+    assert RequestMessage is BaseRequest
+    assert NotificationMessage is BaseNotification
+
+
+def test_response_message_success():
+    response = ResponseMessage(id=1, result={"capabilities": {}})
+    data = response.model_dump(exclude_none=True)
+    assert data == {"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}
+    assert "error" not in data
+
+
+def test_response_message_error():
+    response = ResponseMessage(
+        id=1,
+        error=ResponseError(code=ErrorCodes.MethodNotFound, message="no such method"),
+    )
+    data = response.model_dump(exclude_none=True)
+    assert data["error"] == {"code": -32601, "message": "no such method"}
+    assert "result" not in data
+
+
+def test_response_message_null_id():
+    # id may be null when it cannot be determined (e.g. a parse error).
+    response = ResponseMessage(
+        id=None,
+        error=ResponseError(code=ErrorCodes.ParseError, message="parse error"),
+    )
+    data = response.model_dump()
+    assert data["id"] is None
+
+
+def test_error_codes_values():
+    assert ErrorCodes.ParseError == -32700
+    assert ErrorCodes.InvalidRequest == -32600
+    assert ErrorCodes.InternalError == -32603
+    assert ErrorCodes.RequestCancelled == -32800
+    assert ErrorCodes.ContentModified == -32801
+    # Shared-value codes resolve to aliases of the canonical member.
+    assert ErrorCodes.serverErrorStart is ErrorCodes.jsonrpcReservedErrorRangeStart
