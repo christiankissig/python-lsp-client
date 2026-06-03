@@ -226,6 +226,36 @@ def test_work_done_progress_cancel_notification():
     assert data["params"] == {"token": 42}
 
 
+def test_notification_message_with_object_params():
+    notif = NotificationMessage(method="telemetry/event", params={"key": "value"})
+    data = notif.model_dump(exclude_none=True)
+    assert data == {
+        "jsonrpc": "2.0",
+        "method": "telemetry/event",
+        "params": {"key": "value"},
+    }
+    assert "id" not in data
+
+
+def test_notification_message_with_array_params():
+    # Per the spec a notification's params may be an array, not just an object.
+    notif = NotificationMessage(method="custom/event", params=[1, "two", {"k": 3}])
+    data = notif.model_dump(exclude_none=True)
+    assert data["params"] == [1, "two", {"k": 3}]
+
+
+def test_notification_message_params_optional():
+    notif = NotificationMessage(method="exit")
+    data = notif.model_dump(exclude_none=True)
+    assert data == {"jsonrpc": "2.0", "method": "exit"}
+    assert "params" not in data
+
+
+def test_notification_message_requires_method():
+    with pytest.raises(ValidationError):
+        NotificationMessage()
+
+
 def test_message_base_defaults():
     message = Message()
     assert message.jsonrpc == "2.0"
