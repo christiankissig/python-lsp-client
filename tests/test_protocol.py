@@ -18,6 +18,7 @@ from lsp_client.protocol import (
     InitializeRequest,
     InitializedNotification,
     LanguageKind,
+    LSPErrorCodes,
     Message,
     NotificationMessage,
     Position,
@@ -426,10 +427,52 @@ def test_server_capabilities_position_encoding_optional():
 
 
 def test_error_codes_values():
+    # ErrorCodes carries only the JSON-RPC defined codes and reserved markers.
     assert ErrorCodes.ParseError == -32700
     assert ErrorCodes.InvalidRequest == -32600
+    assert ErrorCodes.MethodNotFound == -32601
+    assert ErrorCodes.InvalidParams == -32602
     assert ErrorCodes.InternalError == -32603
-    assert ErrorCodes.RequestCancelled == -32800
-    assert ErrorCodes.ContentModified == -32801
+    assert ErrorCodes.ServerNotInitialized == -32002
+    assert ErrorCodes.UnknownErrorCode == -32001
     # Shared-value codes resolve to aliases of the canonical member.
     assert ErrorCodes.serverErrorStart is ErrorCodes.jsonrpcReservedErrorRangeStart
+    assert ErrorCodes.serverErrorEnd is ErrorCodes.jsonrpcReservedErrorRangeEnd
+
+
+def test_lsp_error_codes_values():
+    # LSP-defined codes live in their own enum, separate from JSON-RPC codes.
+    assert LSPErrorCodes.RequestFailed == -32803
+    assert LSPErrorCodes.ServerCancelled == -32802
+    assert LSPErrorCodes.ContentModified == -32801
+    assert LSPErrorCodes.RequestCancelled == -32800
+    assert LSPErrorCodes.lspReservedErrorRangeStart == -32899
+    # The reserved range end aliases RequestCancelled (shared value).
+    assert LSPErrorCodes.lspReservedErrorRangeEnd is LSPErrorCodes.RequestCancelled
+
+
+def test_error_codes_namespaces_are_separate():
+    # JSON-RPC and LSP codes are distinct enums per the spec.
+    assert not hasattr(ErrorCodes, "RequestCancelled")
+    assert not hasattr(LSPErrorCodes, "ParseError")
+
+
+def test_response_error_with_lsp_code():
+    err = ResponseError(
+        code=LSPErrorCodes.RequestFailed, message="boom", data={"detail": 1}
+    )
+    assert err.model_dump() == {
+        "code": -32803,
+        "message": "boom",
+        "data": {"detail": 1},
+    }
+
+
+def test_response_message_rejects_result_and_error():
+    # The spec forbids carrying both a result and an error.
+    with pytest.raises(ValidationError):
+        ResponseMessage(
+            id=1,
+            result={"ok": True},
+            error=ResponseError(code=ErrorCodes.InternalError, message="bad"),
+        )
