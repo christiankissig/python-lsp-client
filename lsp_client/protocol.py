@@ -207,15 +207,101 @@ class ClientCapabilities(BaseModel):
     experimental: dict | None = None
 
 
-class ServerCapabilities(BaseModel):
-    """Subset of server capabilities relevant to position encoding negotiation.
+class TextDocumentSyncKind(IntEnum):
+    """Defines how the host (editor) should sync document changes to the
+    language server."""
 
-    Returned by the server in the ``InitializeResult``.
+    #: Documents should not be synced at all.
+    None_ = 0
+    #: Documents are synced by always sending the full content of the document.
+    Full = 1
+    #: Documents are synced by sending the full content on open, then
+    #: incremental change notifications afterwards.
+    Incremental = 2
+
+
+class ServerCapabilities(BaseModel):
+    """The capabilities a language server provides.
+
+    Returned by the server in the :class:`InitializeResult`.
+
+    Provider options that the spec models as dedicated ``XxxOptions`` /
+    ``XxxRegistrationOptions`` objects are accepted here as ``dict`` (consistent
+    with the rest of this module), while ``boolean | XxxOptions`` unions accept
+    ``bool | dict``.
     """
 
     #: The position encoding the server picked from the client's advertised
     #: ``positionEncodings``. If absent, ``utf-16`` is assumed. @since 3.17.0
     positionEncoding: PositionEncodingKind | None = None
+    #: Defines how text documents are synced.
+    textDocumentSync: TextDocumentSyncKind | dict | None = None
+    #: Defines how notebook documents are synced. @since 3.17.0
+    notebookDocumentSync: dict | None = None
+    #: The server provides completion support.
+    completionProvider: dict | None = None
+    #: The server provides hover support.
+    hoverProvider: bool | dict | None = None
+    #: The server provides signature help support.
+    signatureHelpProvider: dict | None = None
+    #: The server provides go to declaration support. @since 3.14.0
+    declarationProvider: bool | dict | None = None
+    #: The server provides goto definition support.
+    definitionProvider: bool | dict | None = None
+    #: The server provides goto type definition support. @since 3.6.0
+    typeDefinitionProvider: bool | dict | None = None
+    #: The server provides goto implementation support. @since 3.6.0
+    implementationProvider: bool | dict | None = None
+    #: The server provides find references support.
+    referencesProvider: bool | dict | None = None
+    #: The server provides document highlight support.
+    documentHighlightProvider: bool | dict | None = None
+    #: The server provides document symbol support.
+    documentSymbolProvider: bool | dict | None = None
+    #: The server provides code actions.
+    codeActionProvider: bool | dict | None = None
+    #: The server provides code lens.
+    codeLensProvider: dict | None = None
+    #: The server provides document link support.
+    documentLinkProvider: dict | None = None
+    #: The server provides color provider support. @since 3.6.0
+    colorProvider: bool | dict | None = None
+    #: The server provides document formatting.
+    documentFormattingProvider: bool | dict | None = None
+    #: The server provides document range formatting.
+    documentRangeFormattingProvider: bool | dict | None = None
+    #: The server provides document formatting on typing.
+    documentOnTypeFormattingProvider: dict | None = None
+    #: The server provides rename support.
+    renameProvider: bool | dict | None = None
+    #: The server provides folding provider support. @since 3.10.0
+    foldingRangeProvider: bool | dict | None = None
+    #: The server provides execute command support.
+    executeCommandProvider: dict | None = None
+    #: The server provides selection range support. @since 3.15.0
+    selectionRangeProvider: bool | dict | None = None
+    #: The server provides linked editing range support. @since 3.16.0
+    linkedEditingRangeProvider: bool | dict | None = None
+    #: The server provides call hierarchy support. @since 3.16.0
+    callHierarchyProvider: bool | dict | None = None
+    #: The server provides semantic tokens support. @since 3.16.0
+    semanticTokensProvider: dict | None = None
+    #: The server provides moniker support. @since 3.16.0
+    monikerProvider: bool | dict | None = None
+    #: The server provides type hierarchy support. @since 3.17.0
+    typeHierarchyProvider: bool | dict | None = None
+    #: The server provides inline values. @since 3.17.0
+    inlineValueProvider: bool | dict | None = None
+    #: The server provides inlay hints. @since 3.17.0
+    inlayHintProvider: bool | dict | None = None
+    #: The server has support for pull model diagnostics. @since 3.17.0
+    diagnosticProvider: dict | None = None
+    #: The server provides workspace symbol support.
+    workspaceSymbolProvider: bool | dict | None = None
+    #: Workspace-specific server capabilities.
+    workspace: dict | None = None
+    #: Experimental server capabilities.
+    experimental: Any | None = None
 
 
 class TextDocumentClientCapabilities(BaseModel):
