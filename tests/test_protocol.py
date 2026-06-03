@@ -44,6 +44,7 @@ from lsp_client.protocol import (
     TextDocumentIdentifier,
     TextDocumentItem,
     TextDocumentPositionParams,
+    TextDocumentSyncKind,
     WorkDoneProgressBegin,
     WorkDoneProgressCancelNotification,
     WorkDoneProgressCancelParams,
@@ -462,6 +463,57 @@ def test_server_capabilities_position_encoding():
 def test_server_capabilities_position_encoding_optional():
     # Absent positionEncoding means utf-16 is assumed; nothing is serialised.
     assert ServerCapabilities().model_dump(exclude_none=True) == {}
+
+
+def test_text_document_sync_kind_values():
+    assert TextDocumentSyncKind.None_ == 0
+    assert TextDocumentSyncKind.Full == 1
+    assert TextDocumentSyncKind.Incremental == 2
+
+
+def test_server_capabilities_providers_serialise():
+    caps = ServerCapabilities(
+        textDocumentSync=TextDocumentSyncKind.Incremental,
+        hoverProvider=True,
+        definitionProvider=True,
+        completionProvider={"triggerCharacters": ["."]},
+        renameProvider={"prepareProvider": True},
+    )
+    data = caps.model_dump(exclude_none=True)
+    assert data == {
+        "textDocumentSync": 2,
+        "hoverProvider": True,
+        "definitionProvider": True,
+        "completionProvider": {"triggerCharacters": ["."]},
+        "renameProvider": {"prepareProvider": True},
+    }
+
+
+def test_server_capabilities_text_document_sync_accepts_options_dict():
+    # textDocumentSync may also be a TextDocumentSyncOptions object (dict).
+    caps = ServerCapabilities(
+        textDocumentSync={"openClose": True, "change": 2},
+    )
+    assert caps.model_dump(exclude_none=True) == {
+        "textDocumentSync": {"openClose": True, "change": 2}
+    }
+
+
+def test_server_capabilities_parses_from_response_payload():
+    caps = ServerCapabilities.model_validate(
+        {
+            "positionEncoding": "utf-8",
+            "textDocumentSync": 1,
+            "hoverProvider": True,
+            "diagnosticProvider": {"interFileDependencies": False},
+            "experimental": {"customFeature": True},
+        }
+    )
+    assert caps.positionEncoding == PositionEncodingKind.UTF8
+    assert caps.textDocumentSync == TextDocumentSyncKind.Full
+    assert caps.hoverProvider is True
+    assert caps.diagnosticProvider == {"interFileDependencies": False}
+    assert caps.experimental == {"customFeature": True}
 
 
 def test_initialize_result_minimal():
