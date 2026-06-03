@@ -6,7 +6,7 @@ for reference, and what a correct and complete implementation should look like.
 """
 
 from enum import Enum, IntEnum
-from typing import Any, List, Literal, Optional
+from typing import Annotated, Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -280,12 +280,34 @@ class TextDocumentDidOpenNotification(BaseNotification):
         super(TextDocumentDidOpenNotification, self).__init__(**kwargs)
 
 
+# Range
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#range  # noqa: E501
+
+#: The LSP ``uinteger`` type: a non-negative integer in the range
+#: ``[0, 2^31 - 1]``. Used for line and character offsets.
+uinteger = Annotated[int, Field(ge=0, le=2147483647)]
+
+
 class Position(BaseModel):
-    line: int
-    character: int
+    """Position in a text document — a zero-based line and character offset.
+
+    Both ``line`` and ``character`` are ``uinteger`` (non-negative). A position
+    sits between two characters, like an insert cursor. The unit of
+    ``character`` depends on the negotiated position encoding (UTF-16 code units
+    by default); see :class:`PositionEncodingKind`.
+    """
+
+    line: uinteger
+    character: uinteger
 
 
 class Range(BaseModel):
+    """A range in a text document — a start and an exclusive end position.
+
+    A range is comparable to a selection in an editor. An empty range (where
+    ``start`` equals ``end``) denotes a single position.
+    """
+
     start: Position
     end: Position
 
