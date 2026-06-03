@@ -17,6 +17,7 @@ from lsp_client.protocol import (
     InitializeParams,
     InitializeRequest,
     InitializedNotification,
+    LanguageKind,
     Message,
     NotificationMessage,
     Position,
@@ -32,6 +33,7 @@ from lsp_client.protocol import (
     TextDocumentDidCloseNotification,
     TextDocumentDidOpenNotification,
     TextDocumentIdentifier,
+    TextDocumentItem,
     TextDocumentPositionParams,
     WorkDoneProgressBegin,
     WorkDoneProgressCancelNotification,
@@ -262,6 +264,56 @@ def test_response_message_null_id():
     )
     data = response.model_dump()
     assert data["id"] is None
+
+
+def test_language_kind_values():
+    assert LanguageKind.Python == "python"
+    assert LanguageKind.CPP == "cpp"
+    assert LanguageKind.GitCommit == "git-commit"
+    assert LanguageKind.TypeScriptReact == "typescriptreact"
+
+
+def test_text_document_item_with_language_kind():
+    item = TextDocumentItem(
+        uri="file:///tmp/test.py",
+        languageId=LanguageKind.Python,
+        version=1,
+        text="print(1)",
+    )
+    data = item.model_dump()
+    assert data == {
+        "uri": "file:///tmp/test.py",
+        "languageId": "python",
+        "version": 1,
+        "text": "print(1)",
+    }
+
+
+def test_text_document_item_with_known_string():
+    item = TextDocumentItem(
+        uri="file:///tmp/a.rs", languageId="rust", version=2, text="fn main(){}"
+    )
+    assert item.model_dump()["languageId"] == "rust"
+
+
+def test_text_document_item_allows_custom_language_id():
+    # languageId is a free-form string; unlisted identifiers stay valid.
+    item = TextDocumentItem(
+        uri="file:///tmp/a.cob", languageId="cobol", version=1, text=""
+    )
+    assert item.model_dump()["languageId"] == "cobol"
+
+
+def test_text_document_item_serialises_over_the_wire():
+    import json
+
+    item = TextDocumentItem(
+        uri="file:///tmp/test.py",
+        languageId=LanguageKind.Python,
+        version=1,
+        text="x = 1",
+    )
+    assert json.loads(json.dumps(item.model_dump()))["languageId"] == "python"
 
 
 def test_position_serialises():

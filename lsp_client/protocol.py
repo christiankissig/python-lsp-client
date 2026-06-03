@@ -267,9 +267,85 @@ class InitializedNotification(BaseNotification):
 # See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_synchronization # noqa: E501
 
 
+class LanguageKind(str, Enum):
+    """The recognised language identifiers for a :class:`TextDocumentItem`.
+
+    The LSP types ``languageId`` simply as ``string`` and documents the set of
+    identifiers below. These are provided for convenience; custom identifiers
+    not listed here remain valid (``languageId`` accepts any string).
+
+    See
+    https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocumentItem
+    """
+
+    ABAP = "abap"
+    WindowsBat = "bat"
+    BibTeX = "bibtex"
+    Clojure = "clojure"
+    Coffeescript = "coffeescript"
+    C = "c"
+    CPP = "cpp"
+    CSharp = "csharp"
+    CSS = "css"
+    Diff = "diff"
+    Dart = "dart"
+    Dockerfile = "dockerfile"
+    Elixir = "elixir"
+    Erlang = "erlang"
+    FSharp = "fsharp"
+    GitCommit = "git-commit"
+    GitRebase = "git-rebase"
+    Go = "go"
+    Groovy = "groovy"
+    Handlebars = "handlebars"
+    HTML = "html"
+    Ini = "ini"
+    Java = "java"
+    JavaScript = "javascript"
+    JavaScriptReact = "javascriptreact"
+    JSON = "json"
+    LaTeX = "latex"
+    Less = "less"
+    Lua = "lua"
+    Makefile = "makefile"
+    Markdown = "markdown"
+    ObjectiveC = "objective-c"
+    ObjectiveCPP = "objective-cpp"
+    Perl = "perl"
+    Perl6 = "perl6"
+    PHP = "php"
+    Powershell = "powershell"
+    Pug = "jade"
+    Python = "python"
+    R = "r"
+    Razor = "razor"
+    Ruby = "ruby"
+    Rust = "rust"
+    SCSS = "scss"
+    Sass = "sass"
+    Scala = "scala"
+    ShaderLab = "shaderlab"
+    ShellScript = "shellscript"
+    SQL = "sql"
+    Swift = "swift"
+    TypeScript = "typescript"
+    TypeScriptReact = "typescriptreact"
+    TeX = "tex"
+    VisualBasic = "vb"
+    XML = "xml"
+    XSL = "xsl"
+    YAML = "yaml"
+
+
 class TextDocumentItem(BaseModel):
+    """An item to transfer a text document from the client to the server.
+
+    ``languageId`` is a free-form string per the spec; :class:`LanguageKind`
+    enumerates the documented identifiers for convenience.
+    """
+
     uri: str
-    languageId: str
+    languageId: LanguageKind | str
     version: int
     text: str
 
