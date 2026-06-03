@@ -5,24 +5,87 @@ See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17
 for reference, and what a correct and complete implementation should look like.
 """
 
+from enum import IntEnum
 from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 
-class BaseNotification(BaseModel):
-    """LSP notification — like a request but without an id field."""
+# Base Protocol — abstract Message
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#abstractMessage  # noqa: E501
+
+
+class Message(BaseModel):
+    """Base of every LSP message; carries only the JSON-RPC version."""
 
     jsonrpc: str = Field(default="2.0")
+
+
+class BaseNotification(Message):
+    """LSP notification — like a request but without an id field."""
+
     method: str
     params: dict | None = Field(default=None)
 
 
-class BaseRequest(BaseModel):
-    jsonrpc: str = Field(default="2.0")
+class BaseRequest(Message):
     id: int | None = Field(default=None)
     method: str
     params: dict | None = Field(default=None)
+
+
+class ResponseError(BaseModel):
+    """The error object returned on a failed request."""
+
+    code: int
+    message: str
+    data: Any | None = None
+
+
+class ResponseMessage(Message):
+    """A response to a request.
+
+    ``id`` may be ``null`` when the request id could not be determined (e.g. a
+    parse error). Exactly one of ``result`` / ``error`` is present per the spec.
+    """
+
+    id: int | str | None = None
+    result: Any | None = None
+    error: ResponseError | None = None
+
+
+class ErrorCodes(IntEnum):
+    """JSON-RPC and LSP-defined error codes.
+
+    Codes that share a value (e.g. ``serverErrorStart`` /
+    ``jsonrpcReservedErrorRangeStart``) resolve to enum aliases.
+    """
+
+    # Defined by JSON-RPC
+    ParseError = -32700
+    InvalidRequest = -32600
+    MethodNotFound = -32601
+    InvalidParams = -32602
+    InternalError = -32603
+
+    jsonrpcReservedErrorRangeStart = -32099
+    serverErrorStart = -32099
+
+    ServerNotInitialized = -32002
+    UnknownErrorCode = -32001
+
+    jsonrpcReservedErrorRangeEnd = -32000
+    serverErrorEnd = -32000
+
+    # Defined by LSP
+    lspReservedErrorRangeStart = -32899
+
+    RequestFailed = -32803
+    ServerCancelled = -32802
+    ContentModified = -32801
+    RequestCancelled = -32800
+
+    lspReservedErrorRangeEnd = -32800
 
 
 class ProtocolError(Exception):
@@ -347,6 +410,10 @@ class WorkDoneProgressCancelNotification(BaseNotification):
             kwargs["params"] = kwargs["params"].model_dump(exclude_none=True)
         super(WorkDoneProgressCancelNotification, self).__init__(**kwargs)
 
+
+# Spec-named aliases for the base protocol message types.
+RequestMessage = BaseRequest
+NotificationMessage = BaseNotification
 
 # Backwards-compatible aliases for renamed classes
 TextDocumentDidOpenRequest = TextDocumentDidOpenNotification
