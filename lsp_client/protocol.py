@@ -46,11 +46,20 @@ class Message(BaseModel):
     jsonrpc: str = Field(default="2.0")
 
 
+# Notification Message
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage  # noqa: E501
+
+
 class BaseNotification(Message):
-    """LSP notification — like a request but without an id field."""
+    """A notification message — like a request but with no ``id``.
+
+    A processed notification message must not send a response back; they work
+    like events. Per the spec a notification carries a ``method`` and optional
+    ``params`` which may be either an array or an object.
+    """
 
     method: str
-    params: dict | None = Field(default=None)
+    params: list | dict | None = Field(default=None)
 
 
 class BaseRequest(Message):
