@@ -5,10 +5,35 @@ See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17
 for reference, and what a correct and complete implementation should look like.
 """
 
-from enum import IntEnum
+from enum import Enum, IntEnum
 from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+# Position Encoding
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocuments  # noqa: E501
+
+
+class PositionEncodingKind(str, Enum):
+    """How positions are encoded — i.e. what column offsets mean.
+
+    Prior to 3.17 offsets were always based on a UTF-16 string representation.
+    Since 3.17 client and server can negotiate a different encoding via the
+    ``general.positionEncodings`` client capability and the ``positionEncoding``
+    server capability.
+
+    @since 3.17.0
+    """
+
+    #: Character offsets count UTF-8 code units (e.g. bytes).
+    UTF8 = "utf-8"
+    #: Character offsets count UTF-16 code units. This is the default and must
+    #: always be supported by servers.
+    UTF16 = "utf-16"
+    #: Character offsets count UTF-32 code units. These are the same as Unicode
+    #: code points, so this may also be used for an encoding-agnostic offset.
+    UTF32 = "utf-32"
 
 
 # Base Protocol — abstract Message
@@ -114,13 +139,39 @@ class ClientInfo(BaseModel):
     version: str | None = None
 
 
+class GeneralClientCapabilities(BaseModel):
+    """General client capabilities — capabilities not tied to a single feature.
+
+    @since 3.16.0
+    """
+
+    staleRequestSupport: dict | None = None
+    regularExpressions: dict | None = None
+    markdown: dict | None = None
+    #: The position encodings supported by the client, in order of decreasing
+    #: preference. The server picks the first one it also supports; if none
+    #: match it must default to ``utf-16``. @since 3.17.0
+    positionEncodings: list[PositionEncodingKind] | None = None
+
+
 class ClientCapabilities(BaseModel):
     workspace: dict | None = None
     textDocument: dict | None = None
     notebook: dict | None = None
     window: dict | None = None
-    general: dict | None = None
+    general: GeneralClientCapabilities | None = None
     experimental: dict | None = None
+
+
+class ServerCapabilities(BaseModel):
+    """Subset of server capabilities relevant to position encoding negotiation.
+
+    Returned by the server in the ``InitializeResult``.
+    """
+
+    #: The position encoding the server picked from the client's advertised
+    #: ``positionEncodings``. If absent, ``utf-16`` is assumed. @since 3.17.0
+    positionEncoding: PositionEncodingKind | None = None
 
 
 class TextDocumentClientCapabilities(BaseModel):
