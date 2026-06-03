@@ -7,9 +7,14 @@ from lsp_client.protocol import (
     CancelRequest,
     ClientCapabilities,
     ClientInfo,
+    CodeDescription,
     CompletionRequest,
     ContentChange,
     DefinitionRequest,
+    Diagnostic,
+    DiagnosticRelatedInformation,
+    DiagnosticSeverity,
+    DiagnosticTag,
     ErrorCodes,
     ExitNotification,
     GeneralClientCapabilities,
@@ -18,6 +23,7 @@ from lsp_client.protocol import (
     InitializeRequest,
     InitializedNotification,
     LanguageKind,
+    Location,
     LSPErrorCodes,
     Message,
     NotificationMessage,
@@ -454,6 +460,79 @@ def test_server_capabilities_position_encoding():
 def test_server_capabilities_position_encoding_optional():
     # Absent positionEncoding means utf-16 is assumed; nothing is serialised.
     assert ServerCapabilities().model_dump(exclude_none=True) == {}
+
+
+def _range() -> Range:
+    return Range(start=Position(line=1, character=0), end=Position(line=1, character=8))
+
+
+def test_diagnostic_severity_values():
+    assert DiagnosticSeverity.Error == 1
+    assert DiagnosticSeverity.Warning == 2
+    assert DiagnosticSeverity.Information == 3
+    assert DiagnosticSeverity.Hint == 4
+
+
+def test_diagnostic_tag_values():
+    assert DiagnosticTag.Unnecessary == 1
+    assert DiagnosticTag.Deprecated == 2
+
+
+def test_location_structure():
+    loc = Location(uri="file:///tmp/a.py", range=_range())
+    assert loc.model_dump() == {
+        "uri": "file:///tmp/a.py",
+        "range": {
+            "start": {"line": 1, "character": 0},
+            "end": {"line": 1, "character": 8},
+        },
+    }
+
+
+def test_diagnostic_minimal():
+    diag = Diagnostic(range=_range(), message="undefined name 'x'")
+    data = diag.model_dump(exclude_none=True)
+    # Only range and message are required; optional fields are omitted.
+    assert set(data) == {"range", "message"}
+    assert data["message"] == "undefined name 'x'"
+
+
+def test_diagnostic_full():
+    diag = Diagnostic(
+        range=_range(),
+        severity=DiagnosticSeverity.Warning,
+        code="F821",
+        codeDescription=CodeDescription(href="https://example.com/F821"),
+        source="flake8",
+        message="undefined name 'x'",
+        tags=[DiagnosticTag.Unnecessary],
+        relatedInformation=[
+            DiagnosticRelatedInformation(
+                location=Location(uri="file:///tmp/b.py", range=_range()),
+                message="first defined here",
+            )
+        ],
+        data={"fixable": True},
+    )
+    data = diag.model_dump(exclude_none=True)
+    assert data["severity"] == 2
+    assert data["code"] == "F821"
+    assert data["codeDescription"] == {"href": "https://example.com/F821"}
+    assert data["source"] == "flake8"
+    assert data["tags"] == [1]
+    assert data["relatedInformation"][0]["location"]["uri"] == "file:///tmp/b.py"
+    assert data["relatedInformation"][0]["message"] == "first defined here"
+    assert data["data"] == {"fixable": True}
+
+
+def test_diagnostic_integer_code():
+    diag = Diagnostic(range=_range(), message="boom", code=42)
+    assert diag.model_dump(exclude_none=True)["code"] == 42
+
+
+def test_diagnostic_rejects_invalid_severity():
+    with pytest.raises(ValidationError):
+        Diagnostic(range=_range(), message="boom", severity=5)
 
 
 def test_error_codes_values():
