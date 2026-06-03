@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from lsp_client.protocol import (
     BaseNotification,
     BaseRequest,
@@ -259,6 +262,55 @@ def test_response_message_null_id():
     )
     data = response.model_dump()
     assert data["id"] is None
+
+
+def test_position_serialises():
+    pos = Position(line=3, character=10)
+    assert pos.model_dump() == {"line": 3, "character": 10}
+
+
+def test_position_allows_zero():
+    # Positions are zero-based, so 0 is a valid offset.
+    assert Position(line=0, character=0).model_dump() == {"line": 0, "character": 0}
+
+
+def test_position_rejects_negative_line():
+    with pytest.raises(ValidationError):
+        Position(line=-1, character=0)
+
+
+def test_position_rejects_negative_character():
+    with pytest.raises(ValidationError):
+        Position(line=0, character=-5)
+
+
+def test_position_rejects_above_uinteger_max():
+    # uinteger is bounded at 2^31 - 1 per the LSP spec.
+    with pytest.raises(ValidationError):
+        Position(line=2147483648, character=0)
+
+
+def test_position_allows_uinteger_max():
+    assert Position(line=2147483647, character=2147483647).line == 2147483647
+
+
+def test_range_structure():
+    rng = Range(
+        start=Position(line=1, character=2),
+        end=Position(line=3, character=4),
+    )
+    assert rng.model_dump() == {
+        "start": {"line": 1, "character": 2},
+        "end": {"line": 3, "character": 4},
+    }
+
+
+def test_range_rejects_negative_position():
+    with pytest.raises(ValidationError):
+        Range(
+            start=Position(line=0, character=0),
+            end=Position(line=-1, character=0),
+        )
 
 
 def test_position_encoding_kind_values():
