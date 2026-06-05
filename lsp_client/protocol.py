@@ -81,6 +81,21 @@ class ResponseError(BaseModel):
     data: Any | None = None
 
 
+class LSPError(Exception):
+    """Raised when an awaited request resolves to a :class:`ResponseError`.
+
+    Wraps the error object so callers can inspect ``code`` / ``message`` /
+    ``data`` while still catching it as a regular exception.
+    """
+
+    def __init__(self, error: ResponseError) -> None:
+        super().__init__(f"[{error.code}] {error.message}")
+        self.error = error
+        self.code = error.code
+        self.message = error.message
+        self.data = error.data
+
+
 class ResponseMessage(Message):
     """A response to a request.
 
@@ -676,22 +691,453 @@ class TextDocumentPositionParams(BaseModel):
     position: Position
 
 
+class DocumentSymbolParams(BaseModel):
+    """Params for a ``textDocument/documentSymbol`` request."""
+
+    textDocument: TextDocumentIdentifier
+
+
+def _coerce_params(kwargs: dict[str, Any]) -> None:
+    """Serialise a Pydantic ``params`` model into a plain dict in place.
+
+    Lets the language-feature request constructors accept either a raw
+    ``dict`` (as before) or a typed params model — mirroring
+    :class:`InitializeRequest`.
+    """
+    params = kwargs.get("params")
+    if isinstance(params, BaseModel):
+        kwargs["params"] = params.model_dump(exclude_none=True)
+
+
+# Hover
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover  # noqa: E501
+
+
+class MarkupKind(str, Enum):
+    """Describes the content type that a client supports in various result
+    literals like ``Hover`` or ``CompletionItem``."""
+
+    #: Plain text is supported as a content format.
+    PlainText = "plaintext"
+    #: Markdown is supported as a content format.
+    Markdown = "markdown"
+
+
+class MarkupContent(BaseModel):
+    """A string value whose content is interpreted based on its ``kind``.
+
+    @since 3.3.0
+    """
+
+    kind: MarkupKind
+    value: str
+
+
+class MarkedString(BaseModel):
+    """A marked string with an explicit language for syntax highlighting.
+
+    @deprecated use :class:`MarkupContent` instead. Kept because servers may
+    still return the ``{ language, value }`` form in a hover result.
+    """
+
+    language: str
+    value: str
+
+
+class Hover(BaseModel):
+    """The result of a ``textDocument/hover`` request."""
+
+    #: The hover's content. Either a single :class:`MarkupContent`, a (possibly
+    #: deprecated) marked string, or a list of marked strings.
+    contents: MarkupContent | MarkedString | str | list[MarkedString | str]
+    #: An optional range the hover applies to, used to visually highlight it.
+    range: Range | None = None
+
+
+# Completion
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion  # noqa: E501
+
+
+class CompletionTriggerKind(IntEnum):
+    """How a completion was triggered."""
+
+    #: Completion was triggered by typing an identifier, manual invocation
+    #: (e.g. Ctrl+Space) or via the API.
+    Invoked = 1
+    #: Completion was triggered by a trigger character specified by the
+    #: ``completionProvider``'s ``triggerCharacters``.
+    TriggerCharacter = 2
+    #: Completion was re-triggered as the current completion list is incomplete.
+    TriggerForIncompleteCompletions = 3
+
+
+class CompletionContext(BaseModel):
+    """Additional information about the context in which a completion request is
+    triggered."""
+
+    #: How the completion was triggered.
+    triggerKind: CompletionTriggerKind
+    #: The trigger character (single character) that triggered completion.
+    #: Undefined if ``triggerKind`` is not ``TriggerCharacter``.
+    triggerCharacter: str | None = None
+
+
+class CompletionParams(TextDocumentPositionParams):
+    """Params for a ``textDocument/completion`` request."""
+
+    #: The completion context. Only present if the client specifies it can be
+    #: filled in via the ``completionItem.contextSupport`` capability.
+    context: CompletionContext | None = None
+
+
+class CompletionItemKind(IntEnum):
+    """The kind of a completion entry."""
+
+    Text = 1
+    Method = 2
+    Function = 3
+    Constructor = 4
+    Field = 5
+    Variable = 6
+    Class = 7
+    Interface = 8
+    Module = 9
+    Property = 10
+    Unit = 11
+    Value = 12
+    Enum = 13
+    Keyword = 14
+    Snippet = 15
+    Color = 16
+    File = 17
+    Reference = 18
+    Folder = 19
+    EnumMember = 20
+    Constant = 21
+    Struct = 22
+    Event = 23
+    Operator = 24
+    TypeParameter = 25
+
+
+class InsertTextFormat(IntEnum):
+    """Defines whether the insert text in a completion item should be
+    interpreted as plain text or a snippet."""
+
+    #: The primary text to be inserted is treated as plain text.
+    PlainText = 1
+    #: The primary text to be inserted is treated as a snippet (with tab stops,
+    #: placeholders etc.).
+    Snippet = 2
+
+
+class TextEdit(BaseModel):
+    """A textual edit applicable to a text document."""
+
+    #: The range of the text document to be manipulated.
+    range: Range
+    #: The string to be inserted. An empty string deletes the range.
+    newText: str
+
+
+class InsertReplaceEdit(BaseModel):
+    """A special text edit offering an insert and a replace range.
+
+    @since 3.16.0
+    """
+
+    #: The string to be inserted.
+    newText: str
+    #: The range if the insert is requested.
+    insert: Range
+    #: The range if the replace is requested.
+    replace: Range
+
+
+class CompletionItem(BaseModel):
+    """A single completion entry. Only the commonly used fields are modelled;
+    unmodelled fields are ignored."""
+
+    #: The label of this completion item, shown in the UI.
+    label: str
+    #: The kind of this completion item, used to pick an icon.
+    kind: CompletionItemKind | None = None
+    #: A human-readable string with additional information, e.g. type/symbol.
+    detail: str | None = None
+    #: A human-readable string that represents a doc-comment.
+    documentation: str | MarkupContent | None = None
+    #: The string to insert when selecting this completion. When omitted the
+    #: ``label`` is used.
+    insertText: str | None = None
+    #: An edit applied when selecting this completion; overrides ``insertText``.
+    textEdit: TextEdit | InsertReplaceEdit | None = None
+    #: How ``insertText`` / ``textEdit`` text is interpreted.
+    insertTextFormat: InsertTextFormat | None = None
+
+
+class CompletionList(BaseModel):
+    """A collection of completion items to be presented in the editor."""
+
+    #: ``True`` if this list is not complete; further typing should recompute it.
+    isIncomplete: bool
+    #: The completion items.
+    items: list[CompletionItem]
+
+
+# Definition
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_definition  # noqa: E501
+
+
+class LocationLink(BaseModel):
+    """A link between a source and a target location.
+
+    Provides additional metadata over a plain :class:`Location`, including the
+    span of the originating link and the precise target selection range.
+    """
+
+    #: Span of the origin of this link. Used as the underlined span for mouse
+    #: navigation; defaults to the word range at the mouse position.
+    originSelectionRange: Range | None = None
+    #: The target resource identifier of this link.
+    targetUri: str
+    #: The full target range, e.g. the whole symbol including comments.
+    targetRange: Range
+    #: The precise range to select and reveal, e.g. just the symbol name. Must
+    #: be contained within ``targetRange``.
+    targetSelectionRange: Range
+
+
+# Document Symbols
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentSymbol  # noqa: E501
+
+
+class SymbolKind(IntEnum):
+    """A symbol kind."""
+
+    File = 1
+    Module = 2
+    Namespace = 3
+    Package = 4
+    Class = 5
+    Method = 6
+    Property = 7
+    Field = 8
+    Constructor = 9
+    Enum = 10
+    Interface = 11
+    Function = 12
+    Variable = 13
+    Constant = 14
+    String = 15
+    Number = 16
+    Boolean = 17
+    Array = 18
+    Object = 19
+    Key = 20
+    Null = 21
+    EnumMember = 22
+    Struct = 23
+    Event = 24
+    Operator = 25
+    TypeParameter = 26
+
+
+class SymbolTag(IntEnum):
+    """Extra annotations that tweak the rendering of a symbol. @since 3.16.0"""
+
+    #: Render a symbol as obsolete, usually using a strike-out.
+    Deprecated = 1
+
+
+class DocumentSymbol(BaseModel):
+    """A hierarchical symbol — programming constructs like variables, classes,
+    functions etc. — with two ranges and optional children."""
+
+    #: The name of this symbol, displayed in the UI.
+    name: str
+    #: More detail for this symbol, e.g. the signature of a function.
+    detail: str | None = None
+    #: The kind of this symbol.
+    kind: SymbolKind
+    #: Tags for this symbol. @since 3.16.0
+    tags: list[SymbolTag] | None = None
+    #: Indicates the symbol is deprecated. @deprecated use ``tags`` instead.
+    deprecated: bool | None = None
+    #: The range enclosing this symbol, e.g. a function's whole body.
+    range: Range
+    #: The range to select when picking this symbol, e.g. the function name.
+    #: Must be contained by ``range``.
+    selectionRange: Range
+    #: Children of this symbol, e.g. the methods of a class.
+    children: list["DocumentSymbol"] | None = None
+
+
+class SymbolInformation(BaseModel):
+    """A flat representation of a symbol with its enclosing location.
+
+    @deprecated by the LSP spec in favour of :class:`DocumentSymbol`; servers
+    may still return it from ``textDocument/documentSymbol``.
+    """
+
+    #: The name of this symbol.
+    name: str
+    #: The kind of this symbol.
+    kind: SymbolKind
+    #: Tags for this symbol. @since 3.16.0
+    tags: list[SymbolTag] | None = None
+    #: Indicates the symbol is deprecated. @deprecated use ``tags`` instead.
+    deprecated: bool | None = None
+    #: The location of this symbol.
+    location: Location
+    #: The name of the symbol containing this symbol.
+    containerName: str | None = None
+
+
+# Document Highlights
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_documentHighlight  # noqa: E501
+
+
+class DocumentHighlightKind(IntEnum):
+    """A document highlight kind."""
+
+    #: A textual occurrence.
+    Text = 1
+    #: Read access of a symbol, e.g. reading a variable.
+    Read = 2
+    #: Write access of a symbol, e.g. writing to a variable.
+    Write = 3
+
+
+class DocumentHighlight(BaseModel):
+    """A range inside a text document that should be highlighted, e.g. all
+    occurrences of a symbol."""
+
+    #: The range this highlight applies to.
+    range: Range
+    #: The highlight kind, defaulting to :attr:`DocumentHighlightKind.Text`.
+    kind: DocumentHighlightKind | None = None
+
+
+# Language-feature requests
+# See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#languageFeatures  # noqa: E501
+
+
 class HoverRequest(BaseRequest):
+    """``textDocument/hover`` — params are a :class:`TextDocumentPositionParams`."""
+
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "textDocument/hover"
+        _coerce_params(kwargs)
         super(HoverRequest, self).__init__(**kwargs)
 
 
 class CompletionRequest(BaseRequest):
+    """``textDocument/completion`` — params are :class:`CompletionParams`."""
+
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "textDocument/completion"
+        _coerce_params(kwargs)
         super(CompletionRequest, self).__init__(**kwargs)
 
 
 class DefinitionRequest(BaseRequest):
+    """``textDocument/definition`` — params are a :class:`TextDocumentPositionParams`."""
+
     def __init__(self, **kwargs: Any) -> None:
         kwargs["method"] = "textDocument/definition"
+        _coerce_params(kwargs)
         super(DefinitionRequest, self).__init__(**kwargs)
+
+
+class DocumentSymbolRequest(BaseRequest):
+    """``textDocument/documentSymbol`` — params are :class:`DocumentSymbolParams`."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "textDocument/documentSymbol"
+        _coerce_params(kwargs)
+        super(DocumentSymbolRequest, self).__init__(**kwargs)
+
+
+class DocumentHighlightRequest(BaseRequest):
+    """``textDocument/documentHighlight`` — params are a :class:`TextDocumentPositionParams`."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["method"] = "textDocument/documentHighlight"
+        _coerce_params(kwargs)
+        super(DocumentHighlightRequest, self).__init__(**kwargs)
+
+
+# Result-union parsing helpers
+# Several language-feature requests return a union whose concrete shape is only
+# discoverable at runtime. These helpers validate a raw JSON ``result`` into the
+# appropriate typed model(s), returning ``None`` when the server returned null.
+
+
+def parse_hover_result(result: Any) -> Hover | None:
+    """Validate a ``textDocument/hover`` result into a :class:`Hover`."""
+    if result is None:
+        return None
+    return Hover.model_validate(result)
+
+
+def parse_completion_result(result: Any) -> CompletionList | None:
+    """Validate a ``textDocument/completion`` result.
+
+    Normalises the ``CompletionItem[] | CompletionList | null`` union: a bare
+    array becomes a complete :class:`CompletionList`.
+    """
+    if result is None:
+        return None
+    if isinstance(result, list):
+        items = [CompletionItem.model_validate(item) for item in result]
+        return CompletionList(isIncomplete=False, items=items)
+    return CompletionList.model_validate(result)
+
+
+def parse_definition_result(
+    result: Any,
+) -> list[Location] | list[LocationLink] | None:
+    """Validate a ``textDocument/definition`` result.
+
+    Normalises the ``Location | Location[] | LocationLink[] | null`` union: a
+    single ``Location`` becomes a one-element list. ``LocationLink`` entries are
+    distinguished from ``Location`` entries by their ``targetUri`` field.
+    """
+    if result is None:
+        return None
+    if isinstance(result, dict):
+        return [Location.model_validate(result)]
+    if not result:
+        return []
+    if "targetUri" in result[0]:
+        return [LocationLink.model_validate(item) for item in result]
+    return [Location.model_validate(item) for item in result]
+
+
+def parse_document_symbol_result(
+    result: Any,
+) -> list[DocumentSymbol] | list[SymbolInformation] | None:
+    """Validate a ``textDocument/documentSymbol`` result.
+
+    Parses the ``DocumentSymbol[] | SymbolInformation[] | null`` union;
+    ``SymbolInformation`` entries are distinguished by their ``location`` field.
+    """
+    if result is None:
+        return None
+    if not result:
+        return []
+    if "location" in result[0]:
+        return [SymbolInformation.model_validate(item) for item in result]
+    return [DocumentSymbol.model_validate(item) for item in result]
+
+
+def parse_document_highlight_result(
+    result: Any,
+) -> list[DocumentHighlight] | None:
+    """Validate a ``textDocument/documentHighlight`` result into highlights."""
+    if result is None:
+        return None
+    return [DocumentHighlight.model_validate(item) for item in result]
 
 
 # $ Notifications and Requests

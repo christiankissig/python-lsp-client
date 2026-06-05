@@ -8,24 +8,41 @@ from lsp_client.protocol import (
     ClientCapabilities,
     ClientInfo,
     CodeDescription,
+    CompletionContext,
+    CompletionItem,
+    CompletionItemKind,
+    CompletionList,
+    CompletionParams,
     CompletionRequest,
+    CompletionTriggerKind,
     ContentChange,
     DefinitionRequest,
     Diagnostic,
     DiagnosticRelatedInformation,
     DiagnosticSeverity,
     DiagnosticTag,
+    DocumentHighlight,
+    DocumentHighlightKind,
+    DocumentHighlightRequest,
+    DocumentSymbol,
+    DocumentSymbolParams,
+    DocumentSymbolRequest,
     ErrorCodes,
     ExitNotification,
     GeneralClientCapabilities,
+    Hover,
     HoverRequest,
     InitializeParams,
     InitializeRequest,
     InitializeResult,
     InitializedNotification,
+    InsertTextFormat,
     LanguageKind,
     Location,
+    LocationLink,
     LSPErrorCodes,
+    MarkupContent,
+    MarkupKind,
     Message,
     NotificationMessage,
     Position,
@@ -38,6 +55,8 @@ from lsp_client.protocol import (
     ServerCapabilities,
     ServerInfo,
     ShutdownRequest,
+    SymbolInformation,
+    SymbolKind,
     TextDocumentDidChangeNotification,
     TextDocumentDidCloseNotification,
     TextDocumentDidOpenNotification,
@@ -53,6 +72,11 @@ from lsp_client.protocol import (
     WorkDoneProgressEnd,
     WorkDoneProgressOptions,
     WorkDoneProgressReport,
+    parse_completion_result,
+    parse_definition_result,
+    parse_document_highlight_result,
+    parse_document_symbol_result,
+    parse_hover_result,
 )
 
 
@@ -683,3 +707,216 @@ def test_response_message_rejects_result_and_error():
             result={"ok": True},
             error=ResponseError(code=ErrorCodes.InternalError, message="bad"),
         )
+
+
+# Language-feature requests — typed params
+
+
+def test_document_symbol_request():
+    params = DocumentSymbolParams(
+        textDocument=TextDocumentIdentifier(uri="file:///tmp/test.py")
+    )
+    req = DocumentSymbolRequest(id=1, params=params)
+    data = req.model_dump(exclude_none=True)
+    assert data["method"] == "textDocument/documentSymbol"
+    assert data["params"] == {"textDocument": {"uri": "file:///tmp/test.py"}}
+
+
+def test_document_highlight_request():
+    req = DocumentHighlightRequest(id=1, params=_position_params())
+    data = req.model_dump(exclude_none=True)
+    assert data["method"] == "textDocument/documentHighlight"
+    assert data["params"]["position"] == {"line": 3, "character": 10}
+
+
+def test_request_accepts_typed_params_model():
+    # Passing a Pydantic params model is coerced to a dict, like a raw dict.
+    req = HoverRequest(id=1, params=_position_params())
+    data = req.model_dump(exclude_none=True)
+    assert data["params"]["textDocument"] == {"uri": "file:///tmp/test.py"}
+
+
+def test_completion_params_with_context():
+    params = CompletionParams(
+        textDocument=TextDocumentIdentifier(uri="file:///tmp/test.py"),
+        position=Position(line=1, character=2),
+        context=CompletionContext(
+            triggerKind=CompletionTriggerKind.TriggerCharacter,
+            triggerCharacter=".",
+        ),
+    )
+    req = CompletionRequest(id=1, params=params)
+    data = req.model_dump(exclude_none=True)
+    assert data["params"]["context"] == {"triggerKind": 2, "triggerCharacter": "."}
+
+
+def test_completion_params_context_optional():
+    params = CompletionParams(
+        textDocument=TextDocumentIdentifier(uri="file:///tmp/test.py"),
+        position=Position(line=1, character=2),
+    )
+    # exclude_none drops the absent context.
+    assert "context" not in params.model_dump(exclude_none=True)
+
+
+# Result models
+
+
+def test_parse_hover_markup_content():
+    hover = parse_hover_result(
+        {
+            "contents": {"kind": "markdown", "value": "# Title"},
+            "range": {
+                "start": {"line": 0, "character": 0},
+                "end": {"line": 0, "character": 5},
+            },
+        }
+    )
+    assert isinstance(hover, Hover)
+    assert isinstance(hover.contents, MarkupContent)
+    assert hover.contents.kind == MarkupKind.Markdown
+    assert hover.range is not None
+
+
+def test_parse_hover_marked_string_list():
+    hover = parse_hover_result(
+        {"contents": ["plain", {"language": "py", "value": "x"}]}
+    )
+    assert isinstance(hover.contents, list)
+    assert hover.contents[0] == "plain"
+    assert hover.contents[1].language == "py"
+
+
+def test_parse_hover_null():
+    assert parse_hover_result(None) is None
+
+
+def test_parse_completion_list():
+    result = parse_completion_result(
+        {
+            "isIncomplete": True,
+            "items": [{"label": "foo", "kind": 3}],
+        }
+    )
+    assert isinstance(result, CompletionList)
+    assert result.isIncomplete is True
+    assert result.items[0].label == "foo"
+    assert result.items[0].kind == CompletionItemKind.Function
+
+
+def test_parse_completion_bare_array_normalises_to_list():
+    result = parse_completion_result([{"label": "foo"}, {"label": "bar"}])
+    assert isinstance(result, CompletionList)
+    assert result.isIncomplete is False
+    assert [i.label for i in result.items] == ["foo", "bar"]
+
+
+def test_parse_completion_null():
+    assert parse_completion_result(None) is None
+
+
+def test_completion_item_insert_text_format():
+    item = CompletionItem.model_validate(
+        {"label": "x", "insertText": "x()", "insertTextFormat": 2}
+    )
+    assert item.insertTextFormat == InsertTextFormat.Snippet
+
+
+def _rng(a, b, c, d):
+    return {"start": {"line": a, "character": b}, "end": {"line": c, "character": d}}
+
+
+def test_parse_definition_single_location_to_list():
+    result = parse_definition_result({"uri": "file:///a.py", "range": _rng(0, 0, 0, 1)})
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert isinstance(result[0], Location)
+    assert result[0].uri == "file:///a.py"
+
+
+def test_parse_definition_location_array():
+    result = parse_definition_result(
+        [
+            {"uri": "file:///a.py", "range": _rng(0, 0, 0, 1)},
+            {"uri": "file:///b.py", "range": _rng(1, 0, 1, 1)},
+        ]
+    )
+    assert all(isinstance(loc, Location) for loc in result)
+
+
+def test_parse_definition_location_links():
+    result = parse_definition_result(
+        [
+            {
+                "targetUri": "file:///a.py",
+                "targetRange": _rng(0, 0, 5, 0),
+                "targetSelectionRange": _rng(0, 0, 0, 3),
+            }
+        ]
+    )
+    assert isinstance(result[0], LocationLink)
+    assert result[0].targetUri == "file:///a.py"
+
+
+def test_parse_definition_empty_and_null():
+    assert parse_definition_result([]) == []
+    assert parse_definition_result(None) is None
+
+
+def test_parse_document_symbol_hierarchical():
+    result = parse_document_symbol_result(
+        [
+            {
+                "name": "C",
+                "kind": 5,
+                "range": _rng(0, 0, 10, 0),
+                "selectionRange": _rng(0, 6, 0, 7),
+                "children": [
+                    {
+                        "name": "m",
+                        "kind": 6,
+                        "range": _rng(1, 0, 2, 0),
+                        "selectionRange": _rng(1, 4, 1, 5),
+                    }
+                ],
+            }
+        ]
+    )
+    assert isinstance(result[0], DocumentSymbol)
+    assert result[0].kind == SymbolKind.Class
+    assert result[0].children[0].name == "m"
+
+
+def test_parse_document_symbol_information():
+    result = parse_document_symbol_result(
+        [
+            {
+                "name": "g",
+                "kind": 12,
+                "location": {"uri": "file:///a.py", "range": _rng(0, 0, 0, 1)},
+            }
+        ]
+    )
+    assert isinstance(result[0], SymbolInformation)
+    assert result[0].location.uri == "file:///a.py"
+
+
+def test_parse_document_symbol_empty_and_null():
+    assert parse_document_symbol_result([]) == []
+    assert parse_document_symbol_result(None) is None
+
+
+def test_parse_document_highlight():
+    result = parse_document_highlight_result(
+        [
+            {"range": _rng(0, 0, 0, 3), "kind": 2},
+            {"range": _rng(1, 0, 1, 3)},
+        ]
+    )
+    assert isinstance(result[0], DocumentHighlight)
+    assert result[0].kind == DocumentHighlightKind.Read
+    assert result[1].kind is None
+
+
+def test_parse_document_highlight_null():
+    assert parse_document_highlight_result(None) is None
