@@ -3,7 +3,13 @@ import json
 import logging
 from typing import Any, Callable, Coroutine
 
-from .protocol import BaseNotification, BaseRequest
+from .protocol import (
+    BaseNotification,
+    BaseRequest,
+    CancelRequest,
+    LSPError,
+    ResponseError,
+)
 from .utils import (
     DEFAULT_CONTENT_TYPE,
     DEFAULT_ENCODING,
@@ -12,6 +18,10 @@ from .utils import (
 )
 
 SEPARATOR = "\r\n"
+
+#: Sentinel marking "no explicit timeout argument" so ``None`` can mean "wait
+#: forever" distinctly from "fall back to the client default".
+_UNSET: Any = object()
 
 
 class LSPClient(object):
@@ -29,6 +39,7 @@ class LSPClient(object):
         stdout: asyncio.StreamReader | None,
         response_handler: Callable[[dict[Any, Any]], Coroutine[Any, Any, None]],
         logger: logging.Logger | None = None,
+        request_timeout: float | None = None,
     ) -> None:
         if logger is None:
             self.logger = logging.getLogger(__name__)
@@ -38,6 +49,11 @@ class LSPClient(object):
         self.stdin = stdin
         self.stdout = stdout
         self._next_request_id: int = 0
+        #: Default timeout (seconds) applied to ``request()`` when the caller
+        #: does not pass one. ``None`` means wait indefinitely.
+        self.request_timeout = request_timeout
+        #: In-flight requests awaiting a response, keyed by request id.
+        self._pending_requests: dict[int | str, asyncio.Future[Any]] = {}
 
     def _allocate_request_id(self) -> int:
         self._next_request_id += 1
@@ -53,6 +69,67 @@ class LSPClient(object):
         if request.id is None:
             request.id = self._allocate_request_id()
         await self._send_request(request.model_dump())
+
+    async def request(
+        self,
+        request: BaseRequest,
+        timeout: float | None = _UNSET,
+    ) -> Any:
+        """
+        Send a request and await its result.
+
+        Unlike :meth:`send_request` (fire-and-forget), this correlates the
+        response by id and returns the response ``result``. On a
+        ``ResponseError`` it raises :class:`LSPError`. If no response arrives
+        within ``timeout`` seconds a ``$/cancelRequest`` is sent to the server
+        and ``asyncio.TimeoutError`` is raised.
+
+        Args:
+            request: The request to send. An id is assigned if it has none.
+            timeout: Seconds to wait for a response. Omit to use the client's
+                ``request_timeout``; pass ``None`` to wait indefinitely.
+
+        Returns:
+            The response ``result`` (which may be ``None``).
+        """
+        if request.id is None:
+            request.id = self._allocate_request_id()
+        if timeout is _UNSET:
+            timeout = self.request_timeout
+
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[Any] = loop.create_future()
+        self._pending_requests[request.id] = future
+
+        try:
+            await self._send_request(request.model_dump(exclude_none=True))
+            if timeout is None:
+                return await future
+            return await asyncio.wait_for(future, timeout)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            # The caller will no longer consume the result; tell the server to
+            # stop computing it. Best-effort — ignore send failures.
+            await self._safe_cancel(request.id)
+            raise
+        finally:
+            self._pending_requests.pop(request.id, None)
+
+    async def cancel_request(self, request_id: int | str) -> None:
+        """
+        Send a ``$/cancelRequest`` notification for an in-flight request.
+
+        ``$/cancelRequest`` is a notification, so it carries no id of its own;
+        ``exclude_none`` drops the unset id from the serialised message.
+        """
+        cancel = CancelRequest(params={"id": request_id})
+        await self._send_request(cancel.model_dump(exclude_none=True))
+
+    async def _safe_cancel(self, request_id: int | str) -> None:
+        """Send a cancellation, swallowing any error (e.g. closed transport)."""
+        try:
+            await self.cancel_request(request_id)
+        except Exception as e:  # pragma: no cover - best-effort cleanup
+            self.logger.debug("Failed to send $/cancelRequest: %s", e)
 
     async def send_notification(self, notification: BaseNotification) -> None:
         """
@@ -71,6 +148,7 @@ class LSPClient(object):
         *cmd: str,
         response_handler: Callable[[dict[Any, Any]], Coroutine[Any, Any, None]],
         logger: logging.Logger | None = None,
+        request_timeout: float | None = None,
     ) -> tuple["LSPClient", asyncio.subprocess.Process]:
         """
         Spawn an LSP server subprocess and return a ready-to-use client.
@@ -79,6 +157,7 @@ class LSPClient(object):
             *cmd: The command and arguments to launch the LSP server.
             response_handler: Async callable that receives each parsed response.
             logger: Optional logger; defaults to the module logger.
+            request_timeout: Default timeout (seconds) for awaited requests.
         """
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -86,7 +165,16 @@ class LSPClient(object):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        return cls(proc.stdin, proc.stdout, response_handler, logger), proc
+        return (
+            cls(
+                proc.stdin,
+                proc.stdout,
+                response_handler,
+                logger,
+                request_timeout,
+            ),
+            proc,
+        )
 
     def build_request(
         self, request_cls: type[BaseRequest], **kwargs: Any
@@ -198,6 +286,24 @@ class LSPClient(object):
 
     async def _handle_response(self, response: dict) -> None:
         """
-        Delegate a parsed response to the registered response handler.
+        Dispatch a parsed message.
+
+        Responses to requests issued via :meth:`request` are correlated by id
+        and used to resolve (or reject) the awaiting future. Everything else —
+        server-initiated requests, notifications, and responses with no pending
+        future — is forwarded to the registered ``response_handler``.
         """
+        message_id: int | str | None = response.get("id")
+        if message_id is not None:
+            future = self._pending_requests.get(message_id)
+            if future is not None and ("result" in response or "error" in response):
+                del self._pending_requests[message_id]
+                if not future.done():
+                    error = response.get("error")
+                    if error is not None:
+                        future.set_exception(LSPError(ResponseError(**error)))
+                    else:
+                        future.set_result(response.get("result"))
+                return
+
         await self.response_handler(response)

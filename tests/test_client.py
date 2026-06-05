@@ -11,7 +11,12 @@ from lsp_client.client import (
     LSPClient,
 )
 from lsp_client.utils import DEFAULT_CONTENT_TYPE
-from lsp_client.protocol import InitializeRequest, InitializedNotification
+from lsp_client.protocol import (
+    HoverRequest,
+    InitializedNotification,
+    InitializeRequest,
+    LSPError,
+)
 
 
 @pytest.mark.asyncio
@@ -99,3 +104,89 @@ async def test_from_command_wires_streams():
         assert client.stdin is mock_proc.stdin
         assert client.stdout is mock_proc.stdout
         assert proc is mock_proc
+
+
+async def _noop_handler(response: dict) -> None:
+    pass
+
+
+@pytest.mark.asyncio
+async def test_request_resolves_by_id():
+    client = LSPClient(None, None, _noop_handler)
+
+    with patch.object(client, "_send_request", new=AsyncMock()):
+        task = asyncio.ensure_future(client.request(HoverRequest()))
+        await asyncio.sleep(0)  # let request register its future
+
+        # Server replies with the result for the allocated id.
+        [(request_id, _)] = client._pending_requests.items()
+        await client._handle_response(
+            {"jsonrpc": "2.0", "id": request_id, "result": {"contents": "hi"}}
+        )
+
+        result = await task
+        assert result == {"contents": "hi"}
+        # Pending entry is cleaned up.
+        assert client._pending_requests == {}
+
+
+@pytest.mark.asyncio
+async def test_request_propagates_response_error():
+    client = LSPClient(None, None, _noop_handler)
+
+    with patch.object(client, "_send_request", new=AsyncMock()):
+        task = asyncio.ensure_future(client.request(HoverRequest()))
+        await asyncio.sleep(0)
+        [request_id] = list(client._pending_requests)
+
+        await client._handle_response(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {"code": -32601, "message": "method not found"},
+            }
+        )
+
+        with pytest.raises(LSPError) as exc:
+            await task
+        assert exc.value.code == -32601
+        assert exc.value.message == "method not found"
+
+
+@pytest.mark.asyncio
+async def test_request_times_out_and_cancels():
+    client = LSPClient(None, None, _noop_handler)
+
+    with patch.object(client, "_send_request", new=AsyncMock()) as mock_send:
+        with pytest.raises(asyncio.TimeoutError):
+            await client.request(HoverRequest(), timeout=0.01)
+
+        # A $/cancelRequest was sent for the timed-out request.
+        sent_methods = [call.args[0]["method"] for call in mock_send.call_args_list]
+        assert "$/cancelRequest" in sent_methods
+        # No leaked pending future.
+        assert client._pending_requests == {}
+
+
+@pytest.mark.asyncio
+async def test_default_request_timeout_used():
+    client = LSPClient(None, None, _noop_handler, request_timeout=0.01)
+
+    with patch.object(client, "_send_request", new=AsyncMock()):
+        with pytest.raises(asyncio.TimeoutError):
+            await client.request(HoverRequest())
+
+
+@pytest.mark.asyncio
+async def test_unmatched_response_forwarded_to_handler():
+    received = []
+
+    async def handler(response: dict) -> None:
+        received.append(response)
+
+    client = LSPClient(None, None, handler)
+
+    # A server-initiated request (no pending future) goes to the handler.
+    message = {"jsonrpc": "2.0", "id": 99, "method": "window/showMessageRequest"}
+    await client._handle_response(message)
+    assert received == [message]
